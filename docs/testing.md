@@ -196,8 +196,8 @@ Expected: prints a completion script to stdout.
 
 Fill this in when doing an end-to-end run.
 
-- Date: `2025-12-13T17:39:42Z`
-- Commit SHA: `66dd82b`
+- Date: `2025-12-13T17:44:46Z`
+- Commit SHA: `2f9b55a`
 - Network: `192.168.0.0/24`
 - Discovery result (rooms found): `Bar, Bedroom, Hallway, Kitchen, Living Room, Master Bathroom, Office, Pantry`
 - Notes/issues:
@@ -220,10 +220,21 @@ Fill this in when doing an end-to-end run.
   - Verified: SMAPI / Spotify search:
     - `sonos smapi services` and `sonos smapi search --service Spotify --category tracks "miles davis"` work.
     - `sonos smapi search --open --name Office --index 1 "miles davis"` starts playback.
+    - `sonos smapi browse --service Spotify --id root` works (drill into returned container ids).
+  - Verified: `sonos group unjoin --name Pantry` removes it from the Bar group (restored afterward).
+  - Verified: Mute toggle:
+    - `sonos mute toggle --name Office` flips mute state and `sonos mute get` reflects it.
+  - Verified: Play URI (radio):
+    - `sonos play-uri --name Office --radio http://stream.radioparadise.com/mp3-192` starts playback (URI shows `x-rincon-mp3radio://...`).
+    - Note: Some public streams may not play (depends on codec/redirects/Sonos support).
   - Verified: Watch:
     - `sonos watch --name Office --duration 6s --format tsv` reports `volume_master` changes when volume is adjusted during the watch window.
     - `sonos watch --name Office --duration 4s --format json` prints one JSON object per event line.
   - Verified: Shell completions:
-    - `sonos completion zsh` prints a completion script.
-  - Restored original state via `sonos --timeout 25s scene apply/delete __restore_continued_testing_2025_12_13`.
-  - Restored original state via `sonos scene save/apply/delete __restore_before_testing_2025_12_13` (used `--timeout 25s`).
+    - `sonos completion zsh|bash|fish|powershell` prints completion scripts.
+  - Verified: Spotify Web API search errors clearly without credentials:
+    - `sonos search spotify "miles davis"` prints a “missing SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET” error.
+  - Verified: JSON output:
+    - `sonos --format json discover` prints a JSON array.
+    - `sonos --format json queue list --name Office` prints a JSON object with `items`.
+  - Restored original state via `sonos --timeout 25s scene apply/delete __restore_continued_testing_2025_12_13_b`.

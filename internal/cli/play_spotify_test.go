@@ -247,3 +247,10 @@ func TestPlaySpotifyErrorsOnNonSpotifyResult(t *testing.T) {
 		t.Fatalf("expected no enqueue call, got ref=%q", enq.lastRef)
 	}
 }
+
+func TestRealSpotifyEnqueuerCoordinatorIP(t *testing.T) {
+	r := realSpotifyEnqueuer{c: &sonos.Client{IP: "192.168.1.99"}}
+	if r.CoordinatorIP() != "192.168.1.99" {
+		t.Fatalf("CoordinatorIP: %q", r.CoordinatorIP())
+	}
+}

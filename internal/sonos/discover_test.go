@@ -3,6 +3,7 @@ package sonos
 import (
 	"context"
 	"errors"
+	"net"
 	"testing"
 	"time"
 )
@@ -80,5 +81,49 @@ func TestDiscoverFallsBackWhenSSDPDeadlineExceeded(t *testing.T) {
 	}
 	if len(devs) != 1 || devs[0].Name != "Office" {
 		t.Fatalf("unexpected devices: %#v", devs)
+	}
+}
+
+func TestSortDevices(t *testing.T) {
+	in := map[string]Device{
+		"2.2.2.2": {IP: "2.2.2.2", Name: "B"},
+		"1.1.1.1": {IP: "1.1.1.1", Name: "A"},
+		"1.1.1.2": {IP: "1.1.1.2", Name: "A"},
+	}
+	out := sortDevices(in)
+	if len(out) != 3 {
+		t.Fatalf("len: %d", len(out))
+	}
+	if out[0].Name != "A" || out[0].IP != "1.1.1.1" {
+		t.Fatalf("unexpected first: %+v", out[0])
+	}
+	if out[1].Name != "A" || out[1].IP != "1.1.1.2" {
+		t.Fatalf("unexpected second: %+v", out[1])
+	}
+	if out[2].Name != "B" || out[2].IP != "2.2.2.2" {
+		t.Fatalf("unexpected third: %+v", out[2])
+	}
+}
+
+func TestIPTo24PrefixAndIsPortOpen(t *testing.T) {
+	// ipTo24Prefix
+	if got := ipTo24Prefix(net.ParseIP("192.168.1.10")); got != "192.168.1" {
+		t.Fatalf("ipTo24Prefix: %q", got)
+	}
+	if got := ipTo24Prefix(net.ParseIP("::1")); got != "" {
+		t.Fatalf("ipTo24Prefix v6: %q", got)
+	}
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	if !isPortOpen("127.0.0.1", port, 200*time.Millisecond) {
+		t.Fatalf("expected port open")
+	}
+	_ = ln.Close()
+	if isPortOpen("127.0.0.1", port, 50*time.Millisecond) {
+		t.Fatalf("expected port closed after close")
 	}
 }

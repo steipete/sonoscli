@@ -97,3 +97,16 @@ func TestConfigSetRejectsInvalidFormat(t *testing.T) {
 		t.Fatalf("expected error")
 	}
 }
+
+func TestGetConfigKey(t *testing.T) {
+	cfg := appconfig.Config{DefaultRoom: "Office", Format: "json"}
+	if v, ok := getConfigKey(cfg, "defaultRoom"); !ok || v != "Office" {
+		t.Fatalf("defaultRoom: ok=%v v=%q", ok, v)
+	}
+	if v, ok := getConfigKey(cfg, "format"); !ok || v != "json" {
+		t.Fatalf("format: ok=%v v=%q", ok, v)
+	}
+	if _, ok := getConfigKey(cfg, "nope"); ok {
+		t.Fatalf("expected ok=false")
+	}
+}

@@ -196,26 +196,34 @@ Expected: prints a completion script to stdout.
 
 Fill this in when doing an end-to-end run.
 
-- Date: `2025-12-13T17:19:17Z`
-- Commit SHA: `e44aca3`
+- Date: `2025-12-13T17:39:42Z`
+- Commit SHA: `66dd82b`
 - Network: `192.168.0.0/24`
 - Discovery result (rooms found): `Bar, Bedroom, Hallway, Kitchen, Living Room, Master Bathroom, Office, Pantry`
 - Notes/issues:
   - Verified: `sonos --version` prints `0.1.27`.
-  - Verified: `sonos discover --timeout 6s` finds all expected rooms.
-  - Verified: `sonos group solo --name Office` isolates `Office` for playback.
+  - Verified: `sonos discover --timeout 6s` finds all expected rooms; `sonos discover --all --format tsv` includes bonded/hidden devices; `sonos discover --format json` prints a JSON array.
+  - Verified: Config defaults:
+    - `sonos config set defaultRoom Office` makes `sonos volume get` work without `--name`/`--ip`.
+    - `sonos config set format tsv` affects default output format; reset to `plain` after.
   - Verified: Spotify playback on Office:
+    - `sonos group solo --name Office` isolates `Office` for playback.
     - `sonos open --name Office https://open.spotify.com/album/4o9BvaaFDTBLFxzK70GT1E?...` starts playback.
-    - `sonos next|prev|pause|play|stop --name Office` work (`prev` does not error).
+    - `sonos queue list/play/remove/clear --name Office` works.
   - Verified: Group controls:
     - `sonos group join --name Pantry --to Office`
     - `sonos group volume get/set --name Office`, `sonos group mute toggle --name Office`, `sonos group dissolve --name Office`
-  - Verified: SMAPI / Spotify search:
-    - `sonos smapi categories --service Spotify` works.
-    - `sonos play spotify --name Office "Gareth Emery"` starts playback.
+  - Verified: Scenes:
+    - `sonos scene save/apply/list/delete __tmp_test` works.
   - Verified: Favorites:
     - `sonos favorites list --name Office` and `sonos favorites open --name Office --index 1` work.
-  - Verified: TV input + stop no-op:
-    - `sonos tv --name "Living Room"` sets URI to `x-sonos-htastream:...:spdif`
-    - `sonos stop --name "Living Room"` returns success (no-op for TV input).
+  - Verified: SMAPI / Spotify search:
+    - `sonos smapi services` and `sonos smapi search --service Spotify --category tracks "miles davis"` work.
+    - `sonos smapi search --open --name Office --index 1 "miles davis"` starts playback.
+  - Verified: Watch:
+    - `sonos watch --name Office --duration 6s --format tsv` reports `volume_master` changes when volume is adjusted during the watch window.
+    - `sonos watch --name Office --duration 4s --format json` prints one JSON object per event line.
+  - Verified: Shell completions:
+    - `sonos completion zsh` prints a completion script.
+  - Restored original state via `sonos --timeout 25s scene apply/delete __restore_continued_testing_2025_12_13`.
   - Restored original state via `sonos scene save/apply/delete __restore_before_testing_2025_12_13` (used `--timeout 25s`).

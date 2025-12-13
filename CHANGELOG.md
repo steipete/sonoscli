@@ -74,7 +74,7 @@
   - `Makefile` targets: `fmt`, `fmt-check`, `test`, `build`, `lint`, `ci`
   - `.golangci.yml` for `golangci-lint`
   - `package.json` pnpm helper scripts: `pnpm sonos`, `pnpm build`, `pnpm test`, `pnpm format`, `pnpm lint`
-  - GitHub Actions CI (format check, `go vet`, tests, `golangci-lint`)
+  - GitHub Actions CI (format check, `go vet`, tests with coverage floor, `golangci-lint`)
   - `.gitignore` includes macOS `.DS_Store`, pnpm/node artifacts, and common Go build outputs.
 - Docs: `docs/spec.md` documenting the CLI design and feature set; `docs/testing.md` manual test plan and run log.
 

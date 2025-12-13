@@ -21,10 +21,12 @@ Run from repo root:
 - `pnpm -s test`
 - `pnpm -s lint`
 - `make ci`
+- Optional: `go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out | tail -n 1`
 
 Expected:
 - All commands exit `0`
 - CI should match `.github/workflows/ci.yml` (`gofmt`, `go vet`, `go test`, `golangci-lint`)
+- CI enforces a minimum total coverage of `70%` (statement coverage across `./...`).
 
 ## Live network test plan (manual)
 

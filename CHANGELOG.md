@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on “Keep a Changelog”, and this project aims to follow Semantic Versioning.
 
+## [0.1.19] - 2025-12-13
+
+### Fixed
+- Reduced timeouts/hangs for topology/device-description calls on some Sonos systems by disabling HTTP keep-alives for Sonos requests (and bypassing proxy env vars for private IPs).
+
 ## [0.1.18] - 2025-12-13
 
 ### Added

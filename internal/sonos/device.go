@@ -5,7 +5,9 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -68,8 +70,32 @@ func fetchDeviceDescription(ctx context.Context, httpClient *http.Client, locati
 }
 
 func defaultHTTPClient(timeout time.Duration) *http.Client {
-	return &http.Client{
+	dialer := &net.Dialer{
 		Timeout: timeout,
+	}
+
+	proxyFromEnv := http.ProxyFromEnvironment
+	tr := &http.Transport{
+		// Avoid routing local Sonos traffic via HTTP proxy env vars.
+		Proxy: func(req *http.Request) (*url.URL, error) {
+			host := req.URL.Hostname()
+			if ip := net.ParseIP(host); ip != nil {
+				if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() {
+					return nil, nil
+				}
+			}
+			return proxyFromEnv(req)
+		},
+
+		DialContext:         dialer.DialContext,
+		DisableKeepAlives:   true,
+		ForceAttemptHTTP2:   false,
+		TLSHandshakeTimeout: timeout,
+	}
+
+	return &http.Client{
+		Timeout:   timeout,
+		Transport: tr,
 	}
 }
 

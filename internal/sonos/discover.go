@@ -26,6 +26,10 @@ var (
 	discoverViaTopologyFromIPFunc = discoverViaTopologyFromIP
 	fetchDeviceDescriptionFunc    = fetchDeviceDescription
 	newClientForDiscover          = NewClient
+	localIPv4AddrsFunc            = localIPv4Addrs
+	isPortOpenFunc                = isPortOpen
+	netInterfacesFunc             = net.Interfaces
+	ifaceAddrsFunc                = func(iface net.Interface) ([]net.Addr, error) { return iface.Addrs() }
 )
 
 func Discover(ctx context.Context, opts DiscoverOptions) ([]Device, error) {
@@ -243,7 +247,7 @@ func cloneDeviceMap(in map[string]Device) map[string]Device {
 }
 
 func scanAnySpeakerIP(ctx context.Context, timeout time.Duration) (string, error) {
-	addrs, err := localIPv4Addrs()
+	addrs, err := localIPv4AddrsFunc()
 	if err != nil {
 		return "", err
 	}
@@ -271,11 +275,11 @@ func scanAnySpeakerIP(ctx context.Context, timeout time.Duration) (string, error
 				default:
 				}
 
-				if !isPortOpen(ip, 1400, 250*time.Millisecond) {
+				if !isPortOpenFunc(ip, 1400, 250*time.Millisecond) {
 					continue
 				}
 				location := fmt.Sprintf("http://%s:1400/xml/device_description.xml", ip)
-				_, _, _, err := fetchDeviceDescription(ctx, httpClient, location)
+				_, _, _, err := fetchDeviceDescriptionFunc(ctx, httpClient, location)
 				if err != nil {
 					continue
 				}
@@ -335,7 +339,7 @@ func errString(err error) string {
 }
 
 func localIPv4Addrs() ([]net.IP, error) {
-	ifaces, err := net.Interfaces()
+	ifaces, err := netInterfacesFunc()
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +349,7 @@ func localIPv4Addrs() ([]net.IP, error) {
 		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
 			continue
 		}
-		addrs, err := iface.Addrs()
+		addrs, err := ifaceAddrsFunc(iface)
 		if err != nil {
 			continue
 		}

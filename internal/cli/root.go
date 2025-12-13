@@ -128,19 +128,25 @@ func newRootCmd() (*cobra.Command, *rootFlags, error) {
 func nameFlagCompletion(flags *rootFlags) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
 	return func(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		timeout := completionTimeoutForFlags(flags)
-		ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
-		defer cancel()
 
-		devs, err := sonosDiscover(ctx, sonos.DiscoverOptions{Timeout: timeout})
-		if err != nil || len(devs) == 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
+		names, ok := cachedNameCompletions(time.Now())
+		if !ok {
+			ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
+			defer cancel()
+
+			devs, err := sonosDiscover(ctx, sonos.DiscoverOptions{Timeout: timeout})
+			if err != nil || len(devs) == 0 {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+
+			names = extractDeviceNames(devs)
+			_ = storeNameCompletions(time.Now(), names)
 		}
 
 		needle := strings.ToLower(strings.TrimSpace(toComplete))
 		seen := map[string]struct{}{}
-		out := make([]string, 0, len(devs))
-		for _, d := range devs {
-			name := strings.TrimSpace(d.Name)
+		out := make([]string, 0, len(names))
+		for _, name := range names {
 			if name == "" {
 				continue
 			}
@@ -151,11 +157,32 @@ func nameFlagCompletion(flags *rootFlags) func(*cobra.Command, []string, string)
 				continue
 			}
 			seen[name] = struct{}{}
-			out = append(out, name)
+			out = append(out, escapeBashCompletionValue(name))
 		}
 		sort.Strings(out)
 		return out, cobra.ShellCompDirectiveNoFileComp
 	}
+}
+
+func extractDeviceNames(devs []sonos.Device) []string {
+	out := make([]string, 0, len(devs))
+	for _, d := range devs {
+		name := strings.TrimSpace(d.Name)
+		if name == "" {
+			continue
+		}
+		out = append(out, name)
+	}
+	return out
+}
+
+func escapeBashCompletionValue(value string) string {
+	// Cobra's bash completion uses `compgen -W`, which is whitespace-delimited.
+	// Escaping spaces keeps multi-word speaker names intact (e.g. "Living Room").
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	value = strings.ReplaceAll(value, " ", `\ `)
+	value = strings.ReplaceAll(value, "\t", `\	`)
+	return value
 }
 
 func completionTimeoutForFlags(flags *rootFlags) time.Duration {

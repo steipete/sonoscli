@@ -216,7 +216,7 @@ Dissolve a group (ungroup all members of the group):
 Ungroup Office and play on Office only:
 
 ```bash
-./sonos group unjoin --name "Office"
+./sonos group solo --name "Office"
 ./sonos open --name "Office" "https://open.spotify.com/album/<id>"
 ```
 
@@ -264,7 +264,7 @@ Search via Sonos (SMAPI; no Spotify Web API credentials):
 ./sonos smapi browse --service "Spotify" --id root
 ./sonos smapi auth begin --service "Spotify"
 # open the printed URL in a browser, link your account, then:
-./sonos smapi auth complete --service "Spotify" --code <linkCode>
+./sonos smapi auth complete --service "Spotify" --code <linkCode> --wait 5m
 
 ./sonos smapi search --service "Spotify" --category tracks "gareth emery"
 ./sonos smapi search --service "Spotify" --category tracks --open --name "Office" "gareth emery"
@@ -358,7 +358,7 @@ CI runs: `gofmt` check, `go vet`, `go test`, and `golangci-lint`.
 - `--timeout <duration>`: discovery/network timeout (default `5s`)
 - `--format plain|json|tsv`: output format (defaults to `sonos config format` if set)
 - `--json`: deprecated alias for `--format json`
-- `--debug`: reserved for future logging controls
+- `--debug`: enable detailed trace logs (SSDP/topology/SOAP timings)
 
 ## Config (defaults)
 
@@ -376,6 +376,8 @@ Persist small local defaults:
 - `discover` is empty:
   - Some networks block multicast/SSDP; `sonoscli` falls back to scanning local /24 subnets for port `1400` and then uses Sonos topology to list all rooms.
   - Ensure Wi‑Fi client isolation is off and you’re on the same LAN/subnet.
+- Discovery is slow or flaky:
+  - Run `sonos --debug discover` to see whether SSDP multicast is timing out and whether topology calls are slow.
 - Commands fail with UPnP/SOAP errors:
   - Verify you can reach `http://<speaker-ip>:1400/` from this machine.
   - Try targeting by `--name` (it resolves the coordinator).

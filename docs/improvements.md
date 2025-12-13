@@ -70,6 +70,8 @@ Legend:
   - `sonos play-uri --name "<Room>" "<uri>" [--title "..."] [--radio]`
   - `sonos linein --name "<Room>" [--from "<RoomWithLineIn>"]`
   - `sonos tv --name "<Room>"`
+ - Status:
+   - Implemented in `0.1.8`.
 
 7) **Grouping ergonomics**
 - Value: Med | Effort: S–M | Deps: none

@@ -47,13 +47,6 @@ func (c *Client) ListFavorites(ctx context.Context, start, count int) (Favorites
 	}, nil
 }
 
-func (c *Client) PlayURI(ctx context.Context, uri, meta string) error {
-	if err := c.SetAVTransportURI(ctx, uri, meta); err != nil {
-		return err
-	}
-	return c.Play(ctx)
-}
-
 func (c *Client) PlayFavorite(ctx context.Context, favorite DIDLItem) error {
 	uri := favoriteURI(favorite)
 	if uri == "" {

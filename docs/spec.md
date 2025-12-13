@@ -99,6 +99,12 @@ Key services/actions:
 - `sonos favorites open --name "<Room>" --index <N>`
 - `sonos favorites open --name "<Room>" "<title>"`
 
+### Other sources
+
+- `sonos play-uri --name "<Room>" "<uri>" [--title "..."] [--radio]`
+- `sonos linein --name "<Room>" [--from "<RoomWithLineIn>"]`
+- `sonos tv --name "<Room>"`
+
 ### Scenes
 
 - `sonos scene save <name>` – capture grouping + per-room volume/mute

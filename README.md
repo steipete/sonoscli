@@ -126,6 +126,32 @@ Or play by title (case-insensitive exact match):
 ./sonos favorites open --name "Kitchen" "BBC Radio 6 Music"
 ```
 
+## Other sources
+
+Play an arbitrary URI:
+
+```bash
+./sonos play-uri --name "Kitchen" "https://example.com/stream.mp3"
+```
+
+Force radio-style playback (useful for station-like streams):
+
+```bash
+./sonos play-uri --name "Kitchen" --radio --title "My Stream" "https://example.com/live.mp3"
+```
+
+Switch to line-in (optionally from another speaker):
+
+```bash
+./sonos linein --name "Kitchen" --from "Living Room"
+```
+
+Switch to TV input (soundbar):
+
+```bash
+./sonos tv --name "Living Room"
+```
+
 ## Grouping
 
 Show current groups:

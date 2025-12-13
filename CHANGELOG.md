@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on “Keep a Changelog”, and this project aims to follow Semantic Versioning.
 
+## [0.1.8] - 2025-12-13
+
+### Added
+- Additional music source commands:
+  - `sonos play-uri --name "<Room>" "<uri>" [--title "..."] [--radio]`
+  - `sonos linein --name "<Room>" [--from "<RoomWithLineIn>"]`
+  - `sonos tv --name "<Room>"`
+
 ## [0.1.7] - 2025-12-13
 
 ### Added

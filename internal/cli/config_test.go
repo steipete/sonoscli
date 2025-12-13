@@ -73,3 +73,27 @@ func TestConfigSetGetUnset(t *testing.T) {
 		t.Fatalf("expected defaultRoom to be empty, got %q", cfg.DefaultRoom)
 	}
 }
+
+func TestConfigSetRejectsInvalidFormat(t *testing.T) {
+	flags := &rootFlags{Timeout: 2 * time.Second, Format: formatPlain}
+
+	dir := t.TempDir()
+	store, err := appconfig.NewFileStore(filepath.Join(dir, "config.json"))
+	if err != nil {
+		t.Fatalf("NewFileStore: %v", err)
+	}
+
+	orig := newConfigStore
+	t.Cleanup(func() { newConfigStore = orig })
+	newConfigStore = func() (appconfig.Store, error) { return store, nil }
+
+	cmd := newConfigSetCmd(flags)
+	cmd.SetOut(newDiscardWriter())
+	cmd.SetErr(newDiscardWriter())
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	cmd.SetArgs([]string{"format", "banana"})
+	if err := cmd.ExecuteContext(context.Background()); err == nil {
+		t.Fatalf("expected error")
+	}
+}

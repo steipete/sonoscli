@@ -7,9 +7,11 @@ The format is based on “Keep a Changelog”, and this project aims to follow S
 ## [0.1.18] - 2025-12-13
 
 ### Added
-- `sonos play spotify "<query>"`:
-  - Sonos SMAPI search (no Spotify Web API credentials).
-  - Enqueues and starts playback on the target room (`--name/--ip`).
+- `sonos play spotify --name "<Room>" "<query>"`:
+  - Uses Sonos SMAPI search (no Spotify Web API credentials) to find Spotify content.
+  - Enqueues and starts playback on the target room’s coordinator.
+  - Supports `--category`, `--index`, `--enqueue`, `--service`, `--title`.
+  - Note: If Spotify isn’t authenticated for SMAPI on your Sonos system, run `sonos smapi auth begin|complete --service "Spotify"` first.
 
 ## [0.1.17] - 2025-12-13
 
@@ -22,6 +24,7 @@ The format is based on “Keep a Changelog”, and this project aims to follow S
 - `sonos config` for local defaults:
   - `sonos config set defaultRoom "Office"` to make `--name` optional.
   - `sonos config set format json` to default `--format`.
+  - Stored under your user config dir (e.g. `~/.config/sonoscli/config.json`, mode `0600`).
 
 ## [0.1.15] - 2025-12-13
 

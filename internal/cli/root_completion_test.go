@@ -15,6 +15,9 @@ func TestNameFlagCompletion_ReturnsSortedUniqueAndFiltersByPrefix(t *testing.T) 
 	origDiscover := sonosDiscover
 	t.Cleanup(func() { sonosDiscover = origDiscover })
 
+	cacheDir := t.TempDir()
+	t.Setenv("SONOSCLI_COMPLETION_CACHE_DIR", cacheDir)
+
 	var gotTimeout time.Duration
 	sonosDiscover = func(ctx context.Context, opts sonos.DiscoverOptions) ([]sonos.Device, error) {
 		gotTimeout = opts.Timeout
@@ -23,6 +26,7 @@ func TestNameFlagCompletion_ReturnsSortedUniqueAndFiltersByPrefix(t *testing.T) 
 			{Name: "Living Room"},
 			{Name: "Kitchen"},
 			{Name: "  Office  "},
+			{Name: "Office Sonos"},
 			{Name: ""},
 		}, nil
 	}
@@ -40,7 +44,7 @@ func TestNameFlagCompletion_ReturnsSortedUniqueAndFiltersByPrefix(t *testing.T) 
 	if gotTimeout != 250*time.Millisecond {
 		t.Fatalf("discover timeout = %s, want %s", gotTimeout, 250*time.Millisecond)
 	}
-	want := []string{"Kitchen", "Living Room", "Office"}
+	want := []string{"Kitchen", `Living\ Room`, "Office", `Office\ Sonos`}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("completions = %#v, want %#v", got, want)
 	}
@@ -50,11 +54,20 @@ func TestNameFlagCompletion_ReturnsSortedUniqueAndFiltersByPrefix(t *testing.T) 
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("completions(ki) = %#v, want %#v", got, want)
 	}
+
+	got, _ = completeName(cmd, nil, "li")
+	want = []string{`Living\ Room`}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("completions(li) = %#v, want %#v", got, want)
+	}
 }
 
 func TestNameFlagCompletion_SkipsOnDiscoverError(t *testing.T) {
 	origDiscover := sonosDiscover
 	t.Cleanup(func() { sonosDiscover = origDiscover })
+
+	cacheDir := t.TempDir()
+	t.Setenv("SONOSCLI_COMPLETION_CACHE_DIR", cacheDir)
 
 	sonosDiscover = func(ctx context.Context, opts sonos.DiscoverOptions) ([]sonos.Device, error) {
 		return nil, errors.New("boom")
@@ -71,5 +84,46 @@ func TestNameFlagCompletion_SkipsOnDiscoverError(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Fatalf("completions = %#v, want none", got)
+	}
+}
+
+func TestNameFlagCompletion_UsesDiskCache(t *testing.T) {
+	origDiscover := sonosDiscover
+	t.Cleanup(func() { sonosDiscover = origDiscover })
+
+	cacheDir := t.TempDir()
+	t.Setenv("SONOSCLI_COMPLETION_CACHE_DIR", cacheDir)
+
+	callCount := 0
+	sonosDiscover = func(ctx context.Context, opts sonos.DiscoverOptions) ([]sonos.Device, error) {
+		callCount++
+		return []sonos.Device{
+			{Name: "Living Room"},
+		}, nil
+	}
+
+	flags := &rootFlags{Timeout: time.Second}
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+
+	completeName := nameFlagCompletion(flags)
+
+	got, _ := completeName(cmd, nil, "")
+	want := []string{`Living\ Room`}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("completions = %#v, want %#v", got, want)
+	}
+	if callCount != 1 {
+		t.Fatalf("discover calls = %d, want 1", callCount)
+	}
+
+	// If we can read from cache, discovery shouldn't be called again.
+	sonosDiscover = func(ctx context.Context, opts sonos.DiscoverOptions) ([]sonos.Device, error) {
+		t.Fatalf("expected cache hit; discovery should not be called")
+		return nil, nil
+	}
+	got, _ = completeName(cmd, nil, "")
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("completions(cache) = %#v, want %#v", got, want)
 	}
 }

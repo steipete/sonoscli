@@ -2,6 +2,7 @@ package sonos
 
 import (
 	"context"
+	"errors"
 	"strconv"
 )
 
@@ -43,6 +44,26 @@ func (c *Client) Previous(ctx context.Context) error {
 		"Speed":      "1",
 	})
 	return err
+}
+
+// PreviousOrRestart attempts to go to the previous track. If the device
+// rejects the transition (common for some streaming sources), it falls back
+// to restarting the current track by seeking to 0:00:00.
+func (c *Client) PreviousOrRestart(ctx context.Context) error {
+	if err := c.Previous(ctx); err != nil {
+		var upnpErr *UPnPError
+		if errors.As(err, &upnpErr) {
+			// Observed on some sources (e.g. Spotify): Previous returns a UPnP error
+			// instead of restarting the current track like the Sonos controller does.
+			// 701 = Transition not available
+			// 711 = Illegal seek target (some devices misuse this for Previous)
+			if upnpErr.Code == "701" || upnpErr.Code == "711" {
+				return c.SeekRelTime(ctx, "0:00:00")
+			}
+		}
+		return err
+	}
+	return nil
 }
 
 func (c *Client) SeekRelTime(ctx context.Context, hhmmss string) error {

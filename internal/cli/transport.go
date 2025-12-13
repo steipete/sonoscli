@@ -87,14 +87,14 @@ func newPrevCmd(flags *rootFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "prev",
 		Short: "Go to previous track",
-		Long:  "Sends AVTransport.Previous to the group coordinator.",
+		Long:  "Sends AVTransport.Previous to the group coordinator. If the source rejects previous (common for some streams), it restarts the current track.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			c, err := coordinatorClient(ctx, flags)
 			if err != nil {
 				return err
 			}
-			if err := c.Previous(ctx); err != nil {
+			if err := c.PreviousOrRestart(ctx); err != nil {
 				return err
 			}
 			return writeOK(cmd, flags, "prev", map[string]any{"coordinatorIP": c.IP})

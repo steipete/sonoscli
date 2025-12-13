@@ -77,7 +77,19 @@ Optional:
 - `sonos group dissolve --name "<coordinator>"` (ungroups all members)
 - `sonos group solo --name "<room>"` (ensures it plays by itself)
 
-### 5) Spotify playback (no Spotify Web API creds)
+### 5) Inputs (TV/Line-in)
+
+TV input (soundbars/home theater):
+- Ensure the target is the *soundbar* (e.g. `Living Room`) and it is a standalone coordinator:
+  - `sonos group solo --name "<soundbar room>"`
+- `sonos tv --name "<soundbar room>"`
+- `sonos status --name "<soundbar room>"` should show a URI like `x-sonos-htastream:<UUID>:spdif`
+
+Line-in (devices with analog-in, e.g. Sonos Five):
+- `sonos linein --name "<room>"` (defaults `--from` to the same room)
+- `sonos status --name "<room>"` should show a URI like `x-rincon-stream:<UUID>`
+
+### 6) Spotify playback (no Spotify Web API creds)
 
 This uses Sonos queueing (AVTransport) + Spotify share links.
 
@@ -92,7 +104,7 @@ This uses Sonos queueing (AVTransport) + Spotify share links.
 Expected:
 - Playback starts, track info updates in `sonos status`
 
-### 6) Queue management
+### 7) Queue management
 
 - `sonos queue list --name "<room>"`
 - `sonos queue clear --name "<room>"`
@@ -101,7 +113,7 @@ Expected:
 - List shows items when queue is in use
 - Clear empties the queue
 
-### 7) Scenes (grouping + volume presets)
+### 8) Scenes (grouping + volume presets)
 
 Scenes should only include *visible* rooms (not bonded satellites/subs).
 
@@ -113,7 +125,7 @@ Scenes should only include *visible* rooms (not bonded satellites/subs).
 Expected:
 - No `soap http 500` errors on systems with home theater / stereo bonded devices.
 
-### 8) Sonos Favorites
+### 9) Sonos Favorites
 
 - `sonos favorites list --name "<room>" --timeout 10s`
 - `sonos favorites open --name "<room>" --index 1`
@@ -121,7 +133,7 @@ Expected:
 Expected:
 - Lists favorites; plays selected item (if any exist).
 
-### 9) SMAPI (Sonos music services)
+### 10) SMAPI (Sonos music services)
 
 SMAPI is Sonos-side browsing/search for linked services (e.g. Spotify). It may require a one-time DeviceLink/AppLink auth flow.
 
@@ -137,22 +149,26 @@ Expected:
 - Categories show at least `tracks`, `albums`, `artists`, `playlists` for Spotify.
 - Search returns results after auth is completed.
 
-### 10) Event watching (manual)
+### 11) Event watching (manual)
 
-- `sonos watch --name "<room>"`
+- `sonos watch --name "<room>" --duration 15s` (or omit `--duration` and Ctrl+C)
 - Change volume / skip track in another controller/app.
 
 Expected:
-- Events stream in; stop with Ctrl+C.
+- Events stream in (may take a few seconds after the change); stop with Ctrl+C.
 
 ## Latest run (example record)
 
 Fill this in when doing an end-to-end run.
 
-- Date: `2025-12-13T14:59:25Z`
-- Commit SHA: `6916839319c8241293a340d0b1f91e3fdfe91138`
+- Date: `2025-12-13T15:13:21Z`
+- Commit SHA: `e7d9d49`
 - Network: `192.168.0.0/24`
 - Discovery result (rooms found): `Bar, Bedroom, Hallway, Kitchen, Living Room, Master Bathroom, Office, Pantry`
 - Notes/issues:
   - `sonos smapi search` requires one-time auth on this system (expected): run `sonos smapi auth begin` + `sonos smapi auth complete`.
   - `sonos favorites list` requires a target via `--name`/`--ip`.
+  - Verified: `group solo` on a soundbar room name works even when bonded devices share the same room name.
+  - Verified: `sonos tv` works after making the soundbar a standalone coordinator.
+  - Verified: `sonos linein` works on a Sonos Five.
+  - Verified: `sonos watch` prints follow-up events for volume changes.

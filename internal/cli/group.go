@@ -46,6 +46,7 @@ func newGroupCmd(flags *rootFlags) *cobra.Command {
 	cmd.AddCommand(newGroupStatusCmd(flags))
 	cmd.AddCommand(newGroupJoinCmd(flags))
 	cmd.AddCommand(newGroupUnjoinCmd(flags))
+	cmd.AddCommand(newGroupSoloCmd(flags))
 	cmd.AddCommand(newGroupPartyCmd(flags))
 	cmd.AddCommand(newGroupDissolveCmd(flags))
 	cmd.AddCommand(newGroupVolumeCmd(flags))
@@ -220,6 +221,82 @@ func newGroupUnjoinCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 			return writeOK(cmd, flags, "group.unjoin", map[string]any{"member": member})
+		},
+	}
+	return cmd
+}
+
+func newGroupSoloCmd(flags *rootFlags) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "solo",
+		Short:        "Make this room play by itself",
+		Long:         "Ungroups every other visible member of the target speaker's current group, then makes the target a standalone coordinator.",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := validateTarget(flags); err != nil {
+				return err
+			}
+
+			tg, err := newTopologyGetter(cmd.Context(), flags.Timeout)
+			if err != nil {
+				return err
+			}
+			top, err := tg.GetTopology(cmd.Context())
+			if err != nil {
+				return err
+			}
+
+			target, err := resolveMember(top, flags.Name, flags.IP)
+			if err != nil {
+				return err
+			}
+			group, ok := top.GroupForIP(target.IP)
+			if !ok {
+				return errors.New("speaker not found in any group")
+			}
+
+			var others []sonos.Member
+			for _, m := range group.Members {
+				if !m.IsVisible {
+					continue
+				}
+				if m.IP == target.IP {
+					continue
+				}
+				others = append(others, m)
+			}
+			sort.SliceStable(others, func(i, j int) bool { return others[i].Name < others[j].Name })
+
+			var results []groupOpResult
+			var errs []error
+
+			for _, m := range others {
+				c := newGroupingClient(m.IP, flags.Timeout)
+				if err := c.LeaveGroup(cmd.Context()); err != nil {
+					errs = append(errs, fmt.Errorf("%s (%s): %w", m.Name, m.IP, err))
+					results = append(results, groupOpResult{Action: "leave", Target: m.Name, IP: m.IP, Error: err.Error()})
+					continue
+				}
+				results = append(results, groupOpResult{Action: "leave", Target: m.Name, IP: m.IP})
+			}
+
+			// Finally, ensure the target is standalone (idempotent).
+			c := newGroupingClient(target.IP, flags.Timeout)
+			if err := c.LeaveGroup(cmd.Context()); err != nil {
+				errs = append(errs, fmt.Errorf("%s (%s): %w", target.Name, target.IP, err))
+				results = append(results, groupOpResult{Action: "leave", Target: target.Name, IP: target.IP, Error: err.Error()})
+			} else {
+				results = append(results, groupOpResult{Action: "leave", Target: target.Name, IP: target.IP})
+			}
+
+			if len(errs) > 0 {
+				return errors.Join(errs...)
+			}
+
+			if isJSON(flags) {
+				return writeJSON(cmd, map[string]any{"target": target, "group": group, "results": results})
+			}
+			return nil
 		},
 	}
 	return cmd

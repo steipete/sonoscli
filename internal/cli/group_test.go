@@ -499,3 +499,68 @@ func TestGroupStatusAllShowsInvisible(t *testing.T) {
 		t.Fatalf("expected invisible member in TSV output, got: %s", out.String())
 	}
 }
+
+func TestGroupSoloLeavesOthersThenTarget(t *testing.T) {
+	flags := &rootFlags{Name: "Office", Timeout: 2 * time.Second, Format: formatJSON}
+	cmd := newGroupSoloCmd(flags)
+
+	top := sonos.Topology{
+		Groups: []sonos.Group{
+			{
+				ID: "G1",
+				Coordinator: sonos.Member{
+					Name:          "Bar",
+					IP:            "192.168.1.10",
+					UUID:          "RINCON_BAR1400",
+					IsCoordinator: true,
+					IsVisible:     true,
+				},
+				Members: []sonos.Member{
+					{Name: "Bar", IP: "192.168.1.10", UUID: "RINCON_BAR1400", IsCoordinator: true, IsVisible: true},
+					{Name: "Office", IP: "192.168.1.20", UUID: "RINCON_OFF1400", IsVisible: true},
+					{Name: "Invisible", IP: "192.168.1.21", UUID: "RINCON_INV1400", IsVisible: false},
+				},
+			},
+		},
+		ByName: map[string]sonos.Member{
+			"Bar":    {Name: "Bar", IP: "192.168.1.10", UUID: "RINCON_BAR1400"},
+			"Office": {Name: "Office", IP: "192.168.1.20", UUID: "RINCON_OFF1400"},
+		},
+		ByIP: map[string]sonos.Member{
+			"192.168.1.10": {Name: "Bar", IP: "192.168.1.10", UUID: "RINCON_BAR1400"},
+			"192.168.1.20": {Name: "Office", IP: "192.168.1.20", UUID: "RINCON_OFF1400"},
+		},
+	}
+
+	origTG := newTopologyGetter
+	origGC := newGroupingClient
+	t.Cleanup(func() {
+		newTopologyGetter = origTG
+		newGroupingClient = origGC
+	})
+	newTopologyGetter = func(ctx context.Context, timeout time.Duration) (topologyGetter, error) {
+		return &fakeTopologyGetter{top: top}, nil
+	}
+
+	var left []string
+	newGroupingClient = func(ip string, timeout time.Duration) groupingClient {
+		return &recordingGroupingClient{ip: ip, joinedUUIDs: new([]string), leaveIPs: &left}
+	}
+
+	var out captureWriter
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+
+	if err := cmd.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should have left Bar then Office (target last). Invisible is ignored.
+	if len(left) != 2 || left[0] != "192.168.1.10" || left[1] != "192.168.1.20" {
+		t.Fatalf("unexpected leave order: %#v", left)
+	}
+	if !strings.Contains(out.String(), "\"target\"") {
+		t.Fatalf("expected json output, got: %s", out.String())
+	}
+}

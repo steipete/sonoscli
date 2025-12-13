@@ -4,10 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on “Keep a Changelog”, and this project aims to follow Semantic Versioning.
 
-## [0.1.15] - 2025-12-13
+## [0.1.17] - 2025-12-13
 
-### Changed
-- `sonos group status` now hides invisible/bonded devices by default (use `--all` to include them).
+### Added
+- `sonos group solo --name "<Room>"` to ungroup the current group and leave only that room for playback.
 
 ## [0.1.16] - 2025-12-13
 
@@ -15,6 +15,11 @@ The format is based on “Keep a Changelog”, and this project aims to follow S
 - `sonos config` for local defaults:
   - `sonos config set defaultRoom "Office"` to make `--name` optional.
   - `sonos config set format json` to default `--format`.
+
+## [0.1.15] - 2025-12-13
+
+### Changed
+- `sonos group status` now hides invisible/bonded devices by default (use `--all` to include them).
 
 ## [0.1.14] - 2025-12-13
 

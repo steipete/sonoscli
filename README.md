@@ -195,6 +195,12 @@ Ungroup a speaker (make it standalone):
 ./sonos group unjoin --name "Bedroom"
 ```
 
+Solo a speaker (ungroup its current group so it plays alone):
+
+```bash
+./sonos group solo --name "Office"
+```
+
 Party mode (join all visible speakers to a target group):
 
 ```bash

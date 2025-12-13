@@ -25,8 +25,6 @@ func (e errorRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
 }
 
 func TestFetchDeviceDescription_CurlFallbackOnTimeout(t *testing.T) {
-	t.Parallel()
-
 	orig := curlRoundTripFunc
 	t.Cleanup(func() { curlRoundTripFunc = orig })
 
@@ -74,8 +72,6 @@ func TestFetchDeviceDescription_CurlFallbackOnTimeout(t *testing.T) {
 }
 
 func TestSoapCall_CurlFallbackOnTimeout(t *testing.T) {
-	t.Parallel()
-
 	orig := curlRoundTripFunc
 	t.Cleanup(func() { curlRoundTripFunc = orig })
 
@@ -123,8 +119,6 @@ func TestSoapCall_CurlFallbackOnTimeout(t *testing.T) {
 }
 
 func TestDoRequest_NoFallbackForPublicIP(t *testing.T) {
-	t.Parallel()
-
 	orig := curlRoundTripFunc
 	t.Cleanup(func() { curlRoundTripFunc = orig })
 
@@ -142,8 +136,6 @@ func TestDoRequest_NoFallbackForPublicIP(t *testing.T) {
 }
 
 func TestDoRequest_NoFallbackForNonTimeoutError(t *testing.T) {
-	t.Parallel()
-
 	orig := curlRoundTripFunc
 	t.Cleanup(func() { curlRoundTripFunc = orig })
 
@@ -161,8 +153,6 @@ func TestDoRequest_NoFallbackForNonTimeoutError(t *testing.T) {
 }
 
 func TestParseCurlResponse_ParsesHeadersAndBody(t *testing.T) {
-	t.Parallel()
-
 	req, _ := http.NewRequest(http.MethodGet, "http://192.168.0.21:1400/", nil)
 	raw := []byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nX-Test: 1\r\n\r\nhello")
 	resp, err := parseCurlResponse(raw, req)
@@ -183,8 +173,6 @@ func TestParseCurlResponse_ParsesHeadersAndBody(t *testing.T) {
 }
 
 func TestParseCurlResponse_SkipsInterim100(t *testing.T) {
-	t.Parallel()
-
 	req, _ := http.NewRequest(http.MethodPost, "http://192.168.0.21:1400/", nil)
 	raw := []byte("HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nok")
 	resp, err := parseCurlResponse(raw, req)

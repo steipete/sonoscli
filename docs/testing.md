@@ -196,31 +196,26 @@ Expected: prints a completion script to stdout.
 
 Fill this in when doing an end-to-end run.
 
-- Date: `2025-12-13T17:02:11Z`
-- Commit SHA: `151f5d8`
+- Date: `2025-12-13T17:19:17Z`
+- Commit SHA: `e44aca3`
 - Network: `192.168.0.0/24`
 - Discovery result (rooms found): `Bar, Bedroom, Hallway, Kitchen, Living Room, Master Bathroom, Office, Pantry`
 - Notes/issues:
-  - Verified: `sonos discover` finds all rooms reliably (SSDP + topology; falls back to subnet scan if multicast is blocked).
-  - Verified: `sonos group solo --name Office` isolates `Office` as its own group.
-  - Verified: `sonos open --name Office https://open.spotify.com/album/4o9BvaaFDTBLFxzK70GT1E?...` starts playback on **Office only**.
-  - Verified: `sonos smapi search --service Spotify --category tracks "gareth emery"` works after one-time auth (`sonos auth smapi begin` + `sonos auth smapi complete --wait ...`).
-  - Verified: `sonos auth smapi begin|complete` appears in help; legacy `sonos smapi auth ...` still works (hidden).
-  - Verified: `sonos watch --name Office --duration 6s` reports `volume_master` changes when `sonos volume set` is called during the watch window.
-  - Verified: `sonos prev` does not fail on Spotify playback; it restarts the current track when Previous is rejected.
-  - Verified: Queue workflow on Office: `queue clear`, `enqueue` 2 tracks, `queue play 2`, `queue remove 1`, `queue clear`.
-  - Verified: `sonos config set defaultRoom Office` makes `--name` optional; `sonos config set format tsv` affects output.
-  - Verified: `sonos favorites list --name Bar` lists favorites (may include mixed sources like Spotify/Sonos Radio/SoundCloud).
-  - Note: `sonos play-uri --radio` may be rewritten by Sonos to a different scheme (e.g. `aac://...`) and the stream title may not reflect the provided `--title`.
-  - Note: Restoring scenes may require a longer `--timeout` on some systems (used `--timeout 20s` after a `5s` timeout contacting `Living Room`).
-  - `sonos favorites list` requires a target via `--name`/`--ip`.
-  - `sonos discover --all` shows bonded/hidden devices (multiple IPs per room name), which is expected on this system.
-  - Verified: `sonos config set defaultRoom Office` makes `--name` optional for commands that require a target.
-  - Verified: `sonos group volume`/`sonos group mute` work on a temporary `Office+Pantry` group; `sonos group dissolve` splits it again.
-  - Verified: `group solo` on a soundbar room name works even when bonded devices share the same room name.
-  - Verified: `sonos tv` works after making the soundbar a standalone coordinator.
-  - Verified: `sonos linein` works on a Sonos Five.
-  - Verified: `sonos open` plays a Spotify album link on `Office` after `sonos group dissolve --name Bar` (only `Office` plays).
-  - Verified: `sonos watch` prints follow-up events for volume changes.
-  - Verified: `sonos --debug discover` prints SSDP/topology/SOAP trace logs (useful when multicast is blocked and discovery falls back).
-  - Restored original grouping at end via `sonos scene save __restore_testplan`, then `apply` + `delete`.
+  - Verified: `sonos --version` prints `0.1.27`.
+  - Verified: `sonos discover --timeout 6s` finds all expected rooms.
+  - Verified: `sonos group solo --name Office` isolates `Office` for playback.
+  - Verified: Spotify playback on Office:
+    - `sonos open --name Office https://open.spotify.com/album/4o9BvaaFDTBLFxzK70GT1E?...` starts playback.
+    - `sonos next|prev|pause|play|stop --name Office` work (`prev` does not error).
+  - Verified: Group controls:
+    - `sonos group join --name Pantry --to Office`
+    - `sonos group volume get/set --name Office`, `sonos group mute toggle --name Office`, `sonos group dissolve --name Office`
+  - Verified: SMAPI / Spotify search:
+    - `sonos smapi categories --service Spotify` works.
+    - `sonos play spotify --name Office "Gareth Emery"` starts playback.
+  - Verified: Favorites:
+    - `sonos favorites list --name Office` and `sonos favorites open --name Office --index 1` work.
+  - Verified: TV input + stop no-op:
+    - `sonos tv --name "Living Room"` sets URI to `x-sonos-htastream:...:spdif`
+    - `sonos stop --name "Living Room"` returns success (no-op for TV input).
+  - Restored original state via `sonos scene save/apply/delete __restore_before_testing_2025_12_13` (used `--timeout 25s`).

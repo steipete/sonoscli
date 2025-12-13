@@ -135,6 +135,11 @@ func newSceneSaveCmd(flags *rootFlags) *cobra.Command {
 				coord := g.Coordinator
 				memberUUIDs := make([]string, 0, len(g.Members))
 				for _, m := range g.Members {
+					// Scenes are intended to manage "rooms" (visible zones), not bonded
+					// satellites/subs or other invisible devices.
+					if !m.IsVisible {
+						continue
+					}
 					if m.UUID != "" {
 						memberUUIDs = append(memberUUIDs, m.UUID)
 					}
@@ -152,6 +157,9 @@ func newSceneSaveCmd(flags *rootFlags) *cobra.Command {
 			seen := map[string]bool{}
 			for _, g := range top.Groups {
 				for _, m := range g.Members {
+					if !m.IsVisible {
+						continue
+					}
 					if m.UUID == "" || seen[m.UUID] {
 						continue
 					}
@@ -215,21 +223,31 @@ func newSceneApplyCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			// Map UUID -> IP from current topology. If missing, fall back to stored IP.
+			uuidToMember := map[string]sonos.Member{}
 			uuidToIP := map[string]string{}
 			for _, m := range top.ByIP {
 				if m.UUID != "" && m.IP != "" {
 					uuidToIP[m.UUID] = m.IP
+					uuidToMember[m.UUID] = m
 				}
+			}
+
+			isVisible := func(uuid string) bool {
+				m, ok := uuidToMember[uuid]
+				if !ok {
+					return false
+				}
+				return m.IsVisible
 			}
 
 			involved := map[string]bool{}
 			for _, g := range scene.Groups {
 				if g.CoordinatorUUID != "" {
-					involved[g.CoordinatorUUID] = true
+					involved[g.CoordinatorUUID] = isVisible(g.CoordinatorUUID)
 				}
 				for _, u := range g.MemberUUIDs {
 					if u != "" {
-						involved[u] = true
+						involved[u] = isVisible(u)
 					}
 				}
 			}
@@ -252,12 +270,12 @@ func newSceneApplyCmd(flags *rootFlags) *cobra.Command {
 				for k := range involved {
 					involved[k] = false
 				}
-				involved[mem.UUID] = true
+				involved[mem.UUID] = mem.IsVisible
 			}
 
 			// Step 1: ungroup all involved devices.
 			for _, dev := range scene.Devices {
-				if !involved[dev.UUID] {
+				if !involved[dev.UUID] || !isVisible(dev.UUID) {
 					continue
 				}
 				ip := uuidToIP[dev.UUID]
@@ -290,7 +308,7 @@ func newSceneApplyCmd(flags *rootFlags) *cobra.Command {
 				}
 
 				for _, memberUUID := range g.MemberUUIDs {
-					if memberUUID == "" || memberUUID == g.CoordinatorUUID || !involved[memberUUID] {
+					if memberUUID == "" || memberUUID == g.CoordinatorUUID || !involved[memberUUID] || !isVisible(memberUUID) {
 						continue
 					}
 					memberIP := uuidToIP[memberUUID]
@@ -313,7 +331,7 @@ func newSceneApplyCmd(flags *rootFlags) *cobra.Command {
 
 			// Step 3: restore per-device volume/mute.
 			for _, dev := range scene.Devices {
-				if !involved[dev.UUID] {
+				if !involved[dev.UUID] || !isVisible(dev.UUID) {
 					continue
 				}
 				ip := uuidToIP[dev.UUID]

@@ -96,16 +96,19 @@ func TestSceneSaveCapturesGroupsAndDeviceAudio(t *testing.T) {
 					IP:            "192.168.1.10",
 					UUID:          "RINCON_LR1400",
 					IsCoordinator: true,
+					IsVisible:     true,
 				},
 				Members: []sonos.Member{
-					{Name: "Living Room", IP: "192.168.1.10", UUID: "RINCON_LR1400", IsCoordinator: true},
-					{Name: "Kitchen", IP: "192.168.1.11", UUID: "RINCON_K1400"},
+					{Name: "Living Room", IP: "192.168.1.10", UUID: "RINCON_LR1400", IsCoordinator: true, IsVisible: true},
+					{Name: "Kitchen", IP: "192.168.1.11", UUID: "RINCON_K1400", IsVisible: true},
+					{Name: "Sub", IP: "192.168.1.12", UUID: "RINCON_SUB", IsVisible: false},
 				},
 			},
 		},
 		ByIP: map[string]sonos.Member{
-			"192.168.1.10": {Name: "Living Room", IP: "192.168.1.10", UUID: "RINCON_LR1400"},
-			"192.168.1.11": {Name: "Kitchen", IP: "192.168.1.11", UUID: "RINCON_K1400"},
+			"192.168.1.10": {Name: "Living Room", IP: "192.168.1.10", UUID: "RINCON_LR1400", IsVisible: true},
+			"192.168.1.11": {Name: "Kitchen", IP: "192.168.1.11", UUID: "RINCON_K1400", IsVisible: true},
+			"192.168.1.12": {Name: "Sub", IP: "192.168.1.12", UUID: "RINCON_SUB", IsVisible: false},
 		},
 	}
 
@@ -113,6 +116,7 @@ func TestSceneSaveCapturesGroupsAndDeviceAudio(t *testing.T) {
 	speakers := map[string]*fakeSceneSpeaker{
 		"192.168.1.10": {ip: "192.168.1.10", volume: 10, mute: false},
 		"192.168.1.11": {ip: "192.168.1.11", volume: 20, mute: true},
+		"192.168.1.12": {ip: "192.168.1.12", volume: 1, mute: false},
 	}
 
 	origStore := newSceneStore
@@ -151,8 +155,9 @@ func TestSceneSaveCapturesGroupsAndDeviceAudio(t *testing.T) {
 	if len(store.put.Groups) != 1 {
 		t.Fatalf("expected 1 group, got %d", len(store.put.Groups))
 	}
+	// Invisible/bonded devices should not be included in scenes.
 	if len(store.put.Devices) != 2 {
-		t.Fatalf("expected 2 devices, got %d", len(store.put.Devices))
+		t.Fatalf("expected 2 visible devices, got %d", len(store.put.Devices))
 	}
 }
 
@@ -166,19 +171,21 @@ func TestSceneApplyUngroupsJoinsAndRestoresAudio(t *testing.T) {
 			{
 				CoordinatorUUID: "RINCON_A1400",
 				CoordinatorName: "A",
-				MemberUUIDs:     []string{"RINCON_A1400", "RINCON_B1400"},
+				MemberUUIDs:     []string{"RINCON_A1400", "RINCON_B1400", "RINCON_C_INVISIBLE"},
 			},
 		},
 		Devices: []scenes.SceneDevice{
 			{UUID: "RINCON_A1400", Name: "A", IP: "192.168.1.10", Volume: 5, Mute: false},
 			{UUID: "RINCON_B1400", Name: "B", IP: "192.168.1.11", Volume: 15, Mute: true},
+			{UUID: "RINCON_C_INVISIBLE", Name: "C", IP: "192.168.1.12", Volume: 1, Mute: false},
 		},
 	}
 
 	top := sonos.Topology{
 		ByIP: map[string]sonos.Member{
-			"192.168.1.10": {Name: "A", IP: "192.168.1.10", UUID: "RINCON_A1400"},
-			"192.168.1.11": {Name: "B", IP: "192.168.1.11", UUID: "RINCON_B1400"},
+			"192.168.1.10": {Name: "A", IP: "192.168.1.10", UUID: "RINCON_A1400", IsVisible: true},
+			"192.168.1.11": {Name: "B", IP: "192.168.1.11", UUID: "RINCON_B1400", IsVisible: true},
+			"192.168.1.12": {Name: "C", IP: "192.168.1.12", UUID: "RINCON_C_INVISIBLE", IsVisible: false},
 		},
 	}
 
@@ -186,6 +193,7 @@ func TestSceneApplyUngroupsJoinsAndRestoresAudio(t *testing.T) {
 	speakers := map[string]*fakeSceneSpeaker{
 		"192.168.1.10": {ip: "192.168.1.10"},
 		"192.168.1.11": {ip: "192.168.1.11"},
+		"192.168.1.12": {ip: "192.168.1.12"},
 	}
 
 	origStore := newSceneStore
@@ -237,6 +245,10 @@ func TestSceneApplyUngroupsJoinsAndRestoresAudio(t *testing.T) {
 	}
 	if speakers["192.168.1.11"].setMuteCalls != 1 || speakers["192.168.1.11"].setMuteValue != true {
 		t.Fatalf("expected B setMute=true once, got calls=%d val=%v", speakers["192.168.1.11"].setMuteCalls, speakers["192.168.1.11"].setMuteValue)
+	}
+	// Invisible device should be ignored.
+	if s := speakers["192.168.1.12"]; s != nil && (s.leaveCalls != 0 || s.joinCalls != 0 || s.setVolCalls != 0 || s.setMuteCalls != 0) {
+		t.Fatalf("expected invisible device untouched, got %+v", s)
 	}
 }
 

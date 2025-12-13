@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on “Keep a Changelog”, and this project aims to follow Semantic Versioning.
 
+## [0.1.21] - 2025-12-13
+
+### Fixed
+- `sonos scene save/apply` now ignores invisible/bonded devices (satellites, subs, etc.), preventing `soap http 500` failures on systems with home theater/stereo setups.
+
 ## [0.1.20] - 2025-12-13
 
 ### Fixed

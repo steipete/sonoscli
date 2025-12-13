@@ -59,6 +59,26 @@ Playback:
 ./sonos prev --name "Kitchen"
 ```
 
+## Grouping
+
+Show current groups:
+
+```bash
+./sonos group status
+```
+
+Join `Bedroom` into `Living Room`’s group:
+
+```bash
+./sonos group join --name "Bedroom" --to "Living Room"
+```
+
+Ungroup a speaker (make it standalone):
+
+```bash
+./sonos group unjoin --name "Bedroom"
+```
+
 Volume / mute:
 
 ```bash
@@ -145,6 +165,7 @@ pnpm sonos -- discover
 pnpm sonos -- status --name "Kitchen"
 pnpm sonos -- open --name "Kitchen" spotify:track:6NmXV4o6bmp704aPGyTVVG
 pnpm sonos -- search spotify "miles davis so what"
+pnpm sonos -- group status
 ```
 
 CI runs: `gofmt` check, `go vet`, `go test`, and `golangci-lint`.
@@ -176,6 +197,10 @@ This project was informed by the Sonos control ecosystem and the SoCo Python lib
 ```text
 https://github.com/SoCo/SoCo
 ```
+
+## Design doc
+
+See `docs/spec.md`.
 
 ## License
 

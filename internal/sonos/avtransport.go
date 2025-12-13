@@ -72,6 +72,13 @@ func (c *Client) SetAVTransportURI(ctx context.Context, uri, meta string) error 
 	return err
 }
 
+func (c *Client) BecomeCoordinatorOfStandaloneGroup(ctx context.Context) error {
+	_, err := c.soapCall(ctx, controlAVTransport, urnAVTransport, "BecomeCoordinatorOfStandaloneGroup", map[string]string{
+		"InstanceID": "0",
+	})
+	return err
+}
+
 func (c *Client) AddURIToQueue(ctx context.Context, enqueuedURI, enqueuedMeta string, desiredFirstTrackNumber int, enqueueAsNext bool) (firstTrackNumber int, err error) {
 	asNext := "0"
 	if enqueueAsNext {

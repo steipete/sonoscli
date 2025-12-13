@@ -138,6 +138,35 @@ func (t Topology) FindByIP(ip string) (Member, bool) {
 	return mem, ok
 }
 
+func (t Topology) GroupForIP(ip string) (Group, bool) {
+	for _, g := range t.Groups {
+		for _, m := range g.Members {
+			if m.IP == ip {
+				return g, true
+			}
+		}
+	}
+	return Group{}, false
+}
+
+func (t Topology) GroupForName(name string) (Group, bool) {
+	mem, ok := t.FindByName(name)
+	if !ok {
+		// Try case-insensitive match
+		for k, v := range t.ByName {
+			if strings.EqualFold(k, name) {
+				mem = v
+				ok = true
+				break
+			}
+		}
+	}
+	if !ok {
+		return Group{}, false
+	}
+	return t.GroupForIP(mem.IP)
+}
+
 func (t Topology) CoordinatorIPFor(ip string) (string, bool) {
 	// Find the group that contains this IP and return its coordinator IP.
 	for _, g := range t.Groups {
@@ -169,4 +198,26 @@ func (t Topology) CoordinatorIPForName(name string) (string, bool) {
 		return "", false
 	}
 	return t.CoordinatorIPFor(mem.IP)
+}
+
+func (t Topology) CoordinatorUUIDForIP(ip string) (string, bool) {
+	g, ok := t.GroupForIP(ip)
+	if !ok {
+		return "", false
+	}
+	if g.Coordinator.UUID == "" {
+		return "", false
+	}
+	return g.Coordinator.UUID, true
+}
+
+func (t Topology) CoordinatorUUIDForName(name string) (string, bool) {
+	g, ok := t.GroupForName(name)
+	if !ok {
+		return "", false
+	}
+	if g.Coordinator.UUID == "" {
+		return "", false
+	}
+	return g.Coordinator.UUID, true
 }

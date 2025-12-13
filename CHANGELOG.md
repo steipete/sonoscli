@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on “Keep a Changelog”, and this project aims to follow Semantic Versioning.
 
+## [0.1.2] - 2025-12-13
+
+### Added
+- Grouping commands:
+  - `sonos group status` (lists coordinators + members, `--json` supported)
+  - `sonos group join --name "<Room>" --to "<RoomOrIP>"`
+  - `sonos group unjoin --name "<Room>"`
+- `docs/spec.md` documenting the full CLI design and feature set.
+
 ## [0.1.1] - 2025-12-13
 
 ### Added

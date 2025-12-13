@@ -26,4 +26,13 @@ func TestParseZoneGroupStateXML(t *testing.T) {
 	if ip, ok := top.CoordinatorIPForName("Living Room"); !ok || ip != "192.168.1.10" {
 		t.Fatalf("CoordinatorIPForName: %v %q", ok, ip)
 	}
+	if uuid, ok := top.CoordinatorUUIDForName("Living Room"); !ok || uuid != "RINCON_ABC1400" {
+		t.Fatalf("CoordinatorUUIDForName: %v %q", ok, uuid)
+	}
+	if g, ok := top.GroupForName("living room"); !ok || g.ID != "RINCON_ABC1400:1" {
+		t.Fatalf("GroupForName: %v %+v", ok, g)
+	}
+	if g, ok := top.GroupForIP("192.168.1.11"); !ok || g.Coordinator.Name != "Kitchen" {
+		t.Fatalf("GroupForIP: %v %+v", ok, g)
+	}
 }

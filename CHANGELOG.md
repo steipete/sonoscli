@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on “Keep a Changelog”, and this project aims to follow Semantic Versioning.
 
+## [0.1.14] - 2025-12-13
+
+### Added
+- Discovery improvements:
+  - Topology parsing now includes nested home-theater satellites (and other nested members) when present.
+  - `sonos discover --all` to include invisible/bonded devices (advanced).
+  - `sonos discover --timeout` now bounds the whole discovery operation (SSDP + topology fallback).
+
 ## [0.1.13] - 2025-12-13
 
 ### Added

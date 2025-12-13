@@ -60,6 +60,9 @@ type zgsMember struct {
 	Location  string `xml:"Location,attr"`
 	UUID      string `xml:"UUID,attr"`
 	Invisible string `xml:"Invisible,attr"`
+	// Home-theater satellites appear nested under a ZoneGroupMember.
+	// Some firmwares also use nested members for bonded devices.
+	Satellites []zgsMember `xml:"Satellite"`
 }
 
 func parseZoneGroupStateXML(payload string) (Topology, error) {
@@ -84,28 +87,37 @@ func parseZoneGroupStateXML(payload string) (Topology, error) {
 		members := make([]Member, 0, len(g.Members))
 		var coordinator Member
 		for _, m := range g.Members {
-			ip, err := hostToIP(m.Location)
-			if err != nil {
-				continue
+			mem, ok := toMember(g.Coordinator, m)
+			if ok {
+				if mem.IsCoordinator {
+					coordinator = mem
+				}
+				members = append(members, mem)
+				if mem.Name != "" {
+					t.ByName[mem.Name] = mem
+				}
+				t.ByIP[mem.IP] = mem
+				if mem.UUID != "" {
+					t.byUUID[mem.UUID] = mem
+				}
 			}
-			mem := Member{
-				Name:      m.ZoneName,
-				IP:        ip,
-				UUID:      m.UUID,
-				Location:  m.Location,
-				IsVisible: m.Invisible != "1",
-			}
-			mem.IsCoordinator = mem.UUID == g.Coordinator
-			if mem.IsCoordinator {
-				coordinator = mem
-			}
-			members = append(members, mem)
-			if mem.Name != "" {
-				t.ByName[mem.Name] = mem
-			}
-			t.ByIP[mem.IP] = mem
-			if mem.UUID != "" {
-				t.byUUID[mem.UUID] = mem
+
+			// Include nested satellites (and other nested members) if present.
+			for _, sat := range m.Satellites {
+				smem, ok := toMember("", sat)
+				if !ok {
+					continue
+				}
+				// Satellites cannot be coordinators.
+				smem.IsCoordinator = false
+				members = append(members, smem)
+				if smem.Name != "" {
+					t.ByName[smem.Name] = smem
+				}
+				t.ByIP[smem.IP] = smem
+				if smem.UUID != "" {
+					t.byUUID[smem.UUID] = smem
+				}
 			}
 		}
 
@@ -126,6 +138,24 @@ func parseZoneGroupStateXML(payload string) (Topology, error) {
 	}
 
 	return t, nil
+}
+
+func toMember(groupCoordinatorUUID string, m zgsMember) (Member, bool) {
+	ip, err := hostToIP(m.Location)
+	if err != nil || ip == "" {
+		return Member{}, false
+	}
+	mem := Member{
+		Name:      m.ZoneName,
+		IP:        ip,
+		UUID:      m.UUID,
+		Location:  m.Location,
+		IsVisible: m.Invisible != "1",
+	}
+	if groupCoordinatorUUID != "" {
+		mem.IsCoordinator = mem.UUID == groupCoordinatorUUID
+	}
+	return mem, true
 }
 
 func (t Topology) FindByName(name string) (Member, bool) {

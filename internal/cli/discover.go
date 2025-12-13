@@ -9,14 +9,16 @@ import (
 )
 
 func newDiscoverCmd(flags *rootFlags) *cobra.Command {
-	return &cobra.Command{
+	var all bool
+	cmd := &cobra.Command{
 		Use:   "discover",
 		Short: "Discover Sonos speakers on the local network",
 		Long:  "Sends an SSDP M-SEARCH query and resolves each response to a speaker name via the device description endpoint.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			devices, err := sonos.Discover(ctx, sonos.DiscoverOptions{
-				Timeout: flags.Timeout,
+				Timeout:          flags.Timeout,
+				IncludeInvisible: all,
 			})
 			if err != nil {
 				return err
@@ -39,4 +41,6 @@ func newDiscoverCmd(flags *rootFlags) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&all, "all", false, "Include invisible/bonded devices (advanced)")
+	return cmd
 }

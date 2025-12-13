@@ -8,7 +8,9 @@ func TestParseZoneGroupStateXML(t *testing.T) {
   <ZoneGroups>
     <ZoneGroup Coordinator="RINCON_ABC1400" ID="RINCON_ABC1400:1">
       <ZoneGroupMember ZoneName="Kitchen" UUID="RINCON_ABC1400" Location="http://192.168.1.10:1400/xml/device_description.xml" Invisible="0" />
-      <ZoneGroupMember ZoneName="Living Room" UUID="RINCON_DEF1400" Location="http://192.168.1.11:1400/xml/device_description.xml" Invisible="0" />
+      <ZoneGroupMember ZoneName="Living Room" UUID="RINCON_DEF1400" Location="http://192.168.1.11:1400/xml/device_description.xml" Invisible="0">
+        <Satellite ZoneName="Master Bathroom" UUID="RINCON_MBA1400" Location="http://192.168.1.12:1400/xml/device_description.xml" Invisible="0" />
+      </ZoneGroupMember>
     </ZoneGroup>
   </ZoneGroups>
 </ZoneGroupState>`
@@ -34,5 +36,8 @@ func TestParseZoneGroupStateXML(t *testing.T) {
 	}
 	if g, ok := top.GroupForIP("192.168.1.11"); !ok || g.Coordinator.Name != "Kitchen" {
 		t.Fatalf("GroupForIP: %v %+v", ok, g)
+	}
+	if mem, ok := top.FindByName("Master Bathroom"); !ok || mem.IP != "192.168.1.12" {
+		t.Fatalf("satellite parse: %v %+v", ok, mem)
 	}
 }

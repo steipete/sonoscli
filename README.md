@@ -44,6 +44,7 @@ Discover speakers:
 ```bash
 ./sonos discover
 ./sonos discover --format json
+./sonos discover --all # include invisible/bonded devices (advanced)
 ```
 
 Show status (text or JSON):

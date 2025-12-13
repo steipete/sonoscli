@@ -24,6 +24,9 @@ func Discover(ctx context.Context, opts DiscoverOptions) ([]Device, error) {
 		timeout = 5 * time.Second
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	ssdpResults, err := ssdpDiscover(ctx, timeout)
 	if err != nil {
 		return nil, err
@@ -123,7 +126,14 @@ func discoverViaTopology(ctx context.Context, timeout time.Duration, results []s
 		return nil, errors.New("no ssdp candidates")
 	}
 
+	// Query multiple candidates and keep the best (largest) result, to account
+	// for devices that may return incomplete topology snapshots.
+	deadline := time.Now().Add(timeout)
+	bestByIP := map[string]Device{}
 	for _, ip := range candidates {
+		if time.Now().After(deadline) {
+			break
+		}
 		c := NewClient(ip, timeout)
 		top, err := c.GetTopology(ctx)
 		if err != nil {
@@ -149,9 +159,12 @@ func discoverViaTopology(ctx context.Context, timeout time.Duration, results []s
 			}
 		}
 
-		return sortDevices(byIP), nil
+		bestByIP = preferDeviceSet(bestByIP, byIP)
 	}
 
+	if len(bestByIP) > 0 {
+		return sortDevices(bestByIP), nil
+	}
 	return nil, errors.New("topology discovery failed")
 }
 
@@ -166,6 +179,33 @@ func sortDevices(byIP map[string]Device) []Device {
 		}
 		return out[i].Name < out[j].Name
 	})
+	return out
+}
+
+func preferDeviceSet(best, candidate map[string]Device) map[string]Device {
+	if len(candidate) == 0 {
+		return best
+	}
+	if len(candidate) > len(best) {
+		return cloneDeviceMap(candidate)
+	}
+	if len(candidate) == len(best) {
+		out := cloneDeviceMap(best)
+		for k, v := range candidate {
+			if _, ok := out[k]; !ok {
+				out[k] = v
+			}
+		}
+		return out
+	}
+	return best
+}
+
+func cloneDeviceMap(in map[string]Device) map[string]Device {
+	out := make(map[string]Device, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
 	return out
 }
 

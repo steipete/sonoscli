@@ -18,6 +18,20 @@ This is not an official Sonos project.
 go build -o sonos ./cmd/sonos
 ```
 
+## pnpm helper commands
+
+If you prefer driving the Go workflow through `pnpm`:
+
+```bash
+pnpm build
+pnpm test
+pnpm format
+pnpm lint
+
+pnpm sonos -- discover
+pnpm sonos -- status --name "Kitchen"
+```
+
 Verify:
 
 ```bash
@@ -31,6 +45,7 @@ Verify:
 make fmt
 make test
 make lint
+make build
 ```
 
 `make lint` requires `golangci-lint` to be installed. Examples:

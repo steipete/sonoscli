@@ -1,0 +1,14 @@
+{
+  "name": "sonoscli",
+  "private": true,
+  "description": "Go-based Sonos CLI (pnpm helper scripts)",
+  "scripts": {
+    "sonos": "./scripts/sonos.sh",
+    "build": "mkdir -p bin && go build -o bin/sonos ./cmd/sonos",
+    "test": "go test ./...",
+    "format": "gofmt -w .",
+    "format:check": "test -z \"$(gofmt -l .)\"",
+    "lint": "golangci-lint run ./..."
+  }
+}
+

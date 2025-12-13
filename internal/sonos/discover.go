@@ -27,24 +27,21 @@ func Discover(ctx context.Context, opts DiscoverOptions) ([]Device, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(ssdpResults) == 0 {
-		// Some networks block or degrade multicast/SSDP. Fall back to a light local
-		// subnet scan (port 1400 + device description check).
-		scanTimeout := timeout
-		if scanTimeout < 15*time.Second {
-			scanTimeout = 15 * time.Second
-		}
-		devs, err := scanLocalSubnets(ctx, scanTimeout, opts.IncludeInvisible)
-		if err == nil && len(devs) > 0 {
-			return devs, nil
-		}
-	}
 
 	// Prefer the topology-based approach (query one speaker for the full list),
 	// since not every speaker will reliably respond to SSDP M-SEARCH.
 	out, err := discoverViaTopology(ctx, timeout, ssdpResults, opts.IncludeInvisible)
 	if err == nil && len(out) > 0 {
 		return out, nil
+	}
+
+	// SSDP sometimes fails or returns incomplete results on certain networks.
+	// Fall back to finding any reachable Sonos speaker, then query topology.
+	if anyIP, scanErr := scanAnySpeakerIP(ctx, timeout); scanErr == nil && anyIP != "" {
+		out, topErr := discoverViaTopologyFromIP(ctx, timeout, anyIP, opts.IncludeInvisible)
+		if topErr == nil && len(out) > 0 {
+			return out, nil
+		}
 	}
 
 	// Fallback: resolve each SSDP response directly.
@@ -74,6 +71,35 @@ func Discover(ctx context.Context, opts DiscoverOptions) ([]Device, error) {
 			Name:     name,
 			UDN:      udn,
 			Location: location,
+		}
+	}
+
+	return sortDevices(byIP), nil
+}
+
+func discoverViaTopologyFromIP(ctx context.Context, timeout time.Duration, ip string, includeInvisible bool) ([]Device, error) {
+	c := NewClient(ip, timeout)
+	top, err := c.GetTopology(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	byIP := map[string]Device{}
+	for _, g := range top.Groups {
+		for _, m := range g.Members {
+			if !includeInvisible && !m.IsVisible {
+				continue
+			}
+			name := strings.TrimSpace(m.Name)
+			if name == "" {
+				name = m.IP
+			}
+			byIP[m.IP] = Device{
+				IP:       m.IP,
+				Name:     name,
+				UDN:      m.UUID,
+				Location: m.Location,
+			}
 		}
 	}
 
@@ -223,6 +249,89 @@ func scanLocalSubnets(ctx context.Context, timeout time.Duration, includeInvisib
 	wg.Wait()
 
 	return sortDevices(byIP), nil
+}
+
+func scanAnySpeakerIP(ctx context.Context, timeout time.Duration) (string, error) {
+	addrs, err := localIPv4Addrs()
+	if err != nil {
+		return "", err
+	}
+	if len(addrs) == 0 {
+		return "", errors.New("no local IPv4 addresses found")
+	}
+
+	// Keep per-IP operations quick; we only need one match.
+	httpClient := defaultHTTPClient(2 * time.Second)
+
+	candidateIPs := make(chan string, 1024)
+	found := make(chan string, 1)
+
+	workers := 128
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for i := 0; i < workers; i++ {
+		go func() {
+			defer wg.Done()
+			for ip := range candidateIPs {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
+				if !isPortOpen(ip, 1400, 250*time.Millisecond) {
+					continue
+				}
+				location := fmt.Sprintf("http://%s:1400/xml/device_description.xml", ip)
+				_, _, _, err := fetchDeviceDescription(ctx, httpClient, location)
+				if err != nil {
+					continue
+				}
+
+				select {
+				case found <- ip:
+				default:
+				}
+				return
+			}
+		}()
+	}
+
+	seen := map[string]struct{}{}
+	for _, ip := range addrs {
+		prefix := ipTo24Prefix(ip)
+		if prefix == "" {
+			continue
+		}
+		if _, ok := seen[prefix]; ok {
+			continue
+		}
+		seen[prefix] = struct{}{}
+
+		for host := 1; host <= 254; host++ {
+			select {
+			case candidateIPs <- fmt.Sprintf("%s.%d", prefix, host):
+			case ip := <-found:
+				close(candidateIPs)
+				wg.Wait()
+				return ip, nil
+			case <-ctx.Done():
+				close(candidateIPs)
+				wg.Wait()
+				return "", ctx.Err()
+			}
+		}
+	}
+
+	close(candidateIPs)
+	wg.Wait()
+
+	select {
+	case ip := <-found:
+		return ip, nil
+	default:
+		return "", errors.New("no sonos speakers found on local subnets")
+	}
 }
 
 func localIPv4Addrs() ([]net.IP, error) {

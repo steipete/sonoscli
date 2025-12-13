@@ -62,3 +62,17 @@ func TestCompleteSMAPIAuth_WaitStopsOnNonPendingError(t *testing.T) {
 		t.Fatalf("expected 1 call, got %d", calls)
 	}
 }
+
+func TestIsSMAPIInvalidLinkCode(t *testing.T) {
+	t.Parallel()
+
+	if isSMAPIInvalidLinkCode(nil) {
+		t.Fatalf("expected false for nil")
+	}
+	if !isSMAPIInvalidLinkCode(errors.New("smapi fault: SOAP-ENV:Server: Invalid linkCode details")) {
+		t.Fatalf("expected true for invalid linkCode error")
+	}
+	if isSMAPIInvalidLinkCode(errors.New("smapi fault: SOAP-ENV:Server: NOT_LINKED_RETRY")) {
+		t.Fatalf("expected false for not-linked error")
+	}
+}

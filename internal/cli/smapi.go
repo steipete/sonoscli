@@ -244,7 +244,12 @@ func newSMAPIAuthBeginCmd(flags *rootFlags) *cobra.Command {
 
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Service: %s\n", svc.Name)
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Open this URL and link your account:\n  %s\n", res.RegURL)
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Then run:\n  sonos smapi auth complete --service %q --code %s\n", svc.Name, res.LinkCode)
+			_, _ = fmt.Fprintf(
+				cmd.OutOrStdout(),
+				"Then run:\n  sonos smapi auth complete --service %q --code %s --wait 5m\n",
+				svc.Name,
+				res.LinkCode,
+			)
 			return nil
 		},
 	}
@@ -289,6 +294,9 @@ func newSMAPIAuthCompleteCmd(flags *rootFlags) *cobra.Command {
 				return sm.CompleteAuthentication(ctx, linkCode, linkDeviceID)
 			})
 			if err != nil {
+				if isSMAPIInvalidLinkCode(err) {
+					return fmt.Errorf("link code is invalid or expired; re-run `sonos smapi auth begin` and use the new code: %w", err)
+				}
 				return err
 			}
 
@@ -310,7 +318,7 @@ func newSMAPIAuthCompleteCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().StringVar(&serviceName, "service", "Spotify", "Music service name (as shown in `sonos smapi services`)")
 	cmd.Flags().StringVar(&linkCode, "code", "", "Link code from `sonos smapi auth begin`")
 	cmd.Flags().StringVar(&linkDeviceID, "link-device-id", "", "Optional link device id (returned by begin; usually not needed)")
-	cmd.Flags().DurationVar(&wait, "wait", 0, "Wait up to this duration for linking to complete (polls every 2s)")
+	cmd.Flags().DurationVar(&wait, "wait", 0, "Wait up to this duration for linking to complete (polls periodically)")
 	_ = cmd.MarkFlagRequired("code")
 	return cmd
 }
@@ -373,6 +381,14 @@ func isSMAPILinkPending(err error) bool {
 	// Example: "smapi fault: SOAP-ENV:Server: NOT_LINKED_RETRY"
 	msg := err.Error()
 	return strings.Contains(msg, "NOT_LINKED_RETRY") || strings.Contains(msg, "NOT_LINKED")
+}
+
+func isSMAPIInvalidLinkCode(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(strings.ToLower(msg), "invalid linkcode")
 }
 
 func newSMAPISearchCmd(flags *rootFlags) *cobra.Command {

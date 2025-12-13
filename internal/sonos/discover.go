@@ -25,6 +25,7 @@ var (
 	discoverViaTopologyFunc       = discoverViaTopology
 	discoverViaTopologyFromIPFunc = discoverViaTopologyFromIP
 	fetchDeviceDescriptionFunc    = fetchDeviceDescription
+	newClientForDiscover          = NewClient
 )
 
 func Discover(ctx context.Context, opts DiscoverOptions) ([]Device, error) {
@@ -109,7 +110,7 @@ func Discover(ctx context.Context, opts DiscoverOptions) ([]Device, error) {
 }
 
 func discoverViaTopologyFromIP(ctx context.Context, timeout time.Duration, ip string, includeInvisible bool) ([]Device, error) {
-	c := NewClient(ip, timeout)
+	c := newClientForDiscover(ip, timeout)
 	top, err := c.GetTopology(ctx)
 	if err != nil {
 		slog.Debug("discover: GetTopology failed", "ip", ip, "err", errString(err))
@@ -164,7 +165,7 @@ func discoverViaTopology(ctx context.Context, timeout time.Duration, results []s
 		if time.Now().After(deadline) {
 			break
 		}
-		c := NewClient(ip, timeout)
+		c := newClientForDiscover(ip, timeout)
 		top, err := c.GetTopology(ctx)
 		if err != nil {
 			slog.Debug("discover: topology candidate failed", "ip", ip, "err", errString(err))

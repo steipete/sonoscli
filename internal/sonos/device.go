@@ -100,7 +100,7 @@ func defaultHTTPClient(timeout time.Duration) *http.Client {
 }
 
 func (c *Client) GetDeviceDescription(ctx context.Context) (Device, error) {
-	location := fmt.Sprintf("http://%s:1400/xml/device_description.xml", c.IP)
+	location := c.baseURL() + "/xml/device_description.xml"
 	name, udn, ip, err := fetchDeviceDescription(ctx, c.HTTP, location)
 	if err != nil {
 		return Device{}, err

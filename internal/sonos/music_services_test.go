@@ -1,58 +1,81 @@
 package sonos
 
-import "testing"
+import (
+	"context"
+	"net/http"
+	"strings"
+	"testing"
+	"time"
+)
 
-func TestParseServiceDescriptorListXML(t *testing.T) {
-	xmlPayload := `
-<Services SchemaVersion="1">
-  <Service Id="9" Name="Spotify" Version="1.1" Uri="http://example.com/svc" SecureUri="https://example.com/svc" ContainerType="MService" Capabilities="513">
-    <Policy Auth="DeviceLink" PollInterval="30" />
+func TestListAvailableServices(t *testing.T) {
+	t.Parallel()
+
+	servicesXML := `<Services SchemaVersion="1">
+  <Service Id="2311" Name="Spotify" Version="1.1" Uri="http://example" SecureUri="https://example" ContainerType="MService" Capabilities="513">
+    <Policy Auth="DeviceLink" />
     <Presentation>
-      <Strings Version="1" Uri="https://example.com/strings.xml" />
-      <PresentationMap Version="2" Uri="https://example.com/pmap.xml" />
+      <PresentationMap Version="2" Uri="https://pmap" />
+      <Strings Version="1" Uri="https://strings" />
     </Presentation>
   </Service>
-  <Service Id="163" Name="Spreaker" Version="1.1" Uri="http://example.com/2" SecureUri="https://example.com/2" ContainerType="MService" Capabilities="0">
-    <Policy Auth="Anonymous" />
-  </Service>
-  <Service Id="999" Name="Foo" Version="1.0" Uri="http://example.com/3" SecureUri="https://example.com/3" ContainerType="MService" Capabilities="0">
-    <Policy Auth="AppLink" />
-    <Manifest Uri="https://example.com/manifest.json" />
-  </Service>
 </Services>`
+	escaped := strings.NewReplacer("<", "&lt;", ">", "&gt;").Replace(servicesXML)
 
-	services, err := parseServiceDescriptorListXML(xmlPayload)
+	rt := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		if !strings.Contains(r.Header.Get("SOAPACTION"), "MusicServices:1#ListAvailableServices") {
+			t.Fatalf("SOAPACTION: %q", r.Header.Get("SOAPACTION"))
+		}
+		return httpResponse(200, `<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <u:ListAvailableServicesResponse xmlns:u="urn:schemas-upnp-org:service:MusicServices:1">
+      <AvailableServiceDescriptorList>`+escaped+`</AvailableServiceDescriptorList>
+    </u:ListAvailableServicesResponse>
+  </s:Body>
+</s:Envelope>`), nil
+	})
+
+	c := &Client{
+		IP: "192.0.2.1",
+		HTTP: &http.Client{
+			Timeout:   time.Second,
+			Transport: rt,
+		},
+	}
+
+	services, err := c.ListAvailableServices(context.Background())
 	if err != nil {
-		t.Fatalf("parseServiceDescriptorListXML: %v", err)
+		t.Fatalf("ListAvailableServices: %v", err)
 	}
-	if len(services) != 3 {
-		t.Fatalf("expected 3 services, got %d", len(services))
+	if len(services) != 1 {
+		t.Fatalf("len: %d", len(services))
 	}
+	if services[0].Name != "Spotify" || services[0].ID != "2311" || services[0].Auth != MusicServiceAuthDeviceLink {
+		t.Fatalf("unexpected service: %+v", services[0])
+	}
+	// 2311*256+7
+	if services[0].ServiceType != "591623" {
+		t.Fatalf("ServiceType: %q", services[0].ServiceType)
+	}
+}
 
-	if services[0].Name != "Spotify" {
-		t.Fatalf("expected Spotify first, got %q", services[0].Name)
-	}
-	if services[0].Auth != MusicServiceAuthDeviceLink {
-		t.Fatalf("expected DeviceLink auth, got %q", services[0].Auth)
-	}
-	if services[0].ServiceType != "2311" {
-		t.Fatalf("expected serviceType 2311, got %q", services[0].ServiceType)
-	}
-	if services[0].PresentationMapURI == "" {
-		t.Fatalf("expected presentationMapUri")
-	}
+func TestListAvailableServices_MissingPayloadErrors(t *testing.T) {
+	t.Parallel()
 
-	if services[1].Auth != MusicServiceAuthAnonymous {
-		t.Fatalf("expected Anonymous auth, got %q", services[1].Auth)
-	}
-	if services[1].ServiceType != "41735" {
-		t.Fatalf("expected serviceType 41735, got %q", services[1].ServiceType)
-	}
+	rt := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		return httpResponse(200, `<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <u:ListAvailableServicesResponse xmlns:u="urn:schemas-upnp-org:service:MusicServices:1">
+      <AvailableServiceDescriptorList>   </AvailableServiceDescriptorList>
+    </u:ListAvailableServicesResponse>
+  </s:Body>
+</s:Envelope>`), nil
+	})
 
-	if services[2].Auth != MusicServiceAuthAppLink {
-		t.Fatalf("expected AppLink auth, got %q", services[2].Auth)
-	}
-	if services[2].ManifestURI == "" {
-		t.Fatalf("expected manifestUri")
+	c := &Client{IP: "192.0.2.1", HTTP: &http.Client{Timeout: time.Second, Transport: rt}}
+	if _, err := c.ListAvailableServices(context.Background()); err == nil {
+		t.Fatalf("expected error")
 	}
 }

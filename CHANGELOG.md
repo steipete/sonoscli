@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on “Keep a Changelog”, and this project aims to follow Semantic Versioning.
 
+## [0.1.10] - 2025-12-13
+
+### Added
+- Output formats:
+  - Global `--format plain|json|tsv` flag.
+  - Deprecated `--json` (alias for `--format json`).
+  - JSON output is now consistent across action commands (prints an `{ ok, action, ... }` object).
+
 ## [0.1.9] - 2025-12-13
 
 ### Added

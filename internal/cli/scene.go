@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -74,10 +73,18 @@ func newSceneListCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if flags.JSON {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-				return enc.Encode(metas)
+			if isJSON(flags) {
+				return writeJSON(cmd, metas)
+			}
+			if isTSV(flags) {
+				for _, m := range metas {
+					created := ""
+					if !m.CreatedAt.IsZero() {
+						created = m.CreatedAt.Format(time.RFC3339)
+					}
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\n", m.Name, created)
+				}
+				return nil
 			}
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 2, 2, ' ', 0)
 			_, _ = fmt.Fprintf(w, "NAME\tCREATED\n")
@@ -163,7 +170,10 @@ func newSceneSaveCmd(flags *rootFlags) *cobra.Command {
 			}
 			sort.Slice(scene.Devices, func(i, j int) bool { return scene.Devices[i].UUID < scene.Devices[j].UUID })
 
-			return store.Put(scene)
+			if err := store.Put(scene); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "scene.save", map[string]any{"name": scene.Name})
 		},
 	}
 	return cmd
@@ -318,7 +328,7 @@ func newSceneApplyCmd(flags *rootFlags) *cobra.Command {
 				_ = c.SetVolume(cmd.Context(), dev.Volume)
 			}
 
-			return nil
+			return writeOK(cmd, flags, "scene.apply", map[string]any{"name": scene.Name, "only": strings.TrimSpace(only)})
 		},
 	}
 
@@ -337,7 +347,10 @@ func newSceneDeleteCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return store.Delete(args[0])
+			if err := store.Delete(args[0]); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "scene.delete", map[string]any{"name": args[0]})
 		},
 	}
 }

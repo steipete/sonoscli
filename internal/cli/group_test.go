@@ -370,7 +370,7 @@ func TestGroupJoinRequiresTo(t *testing.T) {
 }
 
 func TestGroupStatusJSON(t *testing.T) {
-	flags := &rootFlags{Timeout: 2 * time.Second, JSON: true}
+	flags := &rootFlags{Timeout: 2 * time.Second, Format: formatJSON}
 	cmd := newGroupStatusCmd(flags)
 
 	origTG := newTopologyGetter

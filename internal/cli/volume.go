@@ -27,7 +27,14 @@ func newVolumeCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Println(v)
+			if isJSON(flags) {
+				return writeJSON(cmd, map[string]any{"volume": v, "coordinatorIP": c.IP})
+			}
+			if isTSV(flags) {
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "volume\t%d\n", v)
+				return nil
+			}
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), v)
 			return nil
 		},
 	})
@@ -46,7 +53,10 @@ func newVolumeCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return c.SetVolume(ctx, v)
+			if err := c.SetVolume(ctx, v); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "volume.set", map[string]any{"coordinatorIP": c.IP, "volume": v})
 		},
 	})
 

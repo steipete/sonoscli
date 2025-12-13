@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -58,10 +57,18 @@ func newQueueListCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 
-			if flags.JSON {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-				return enc.Encode(page)
+			if isJSON(flags) {
+				return writeJSON(cmd, page)
+			}
+			if isTSV(flags) {
+				for _, qi := range page.Items {
+					title := qi.Item.Title
+					if title == "" {
+						title = qi.Item.ID
+					}
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%d\t%s\t%s\n", qi.Position, title, qi.Item.URI)
+				}
+				return nil
 			}
 
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 2, 2, ' ', 0)
@@ -96,7 +103,10 @@ func newQueueClearCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return c.ClearQueue(ctx)
+			if err := c.ClearQueue(ctx); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "queue.clear", nil)
 		},
 	}
 	return cmd
@@ -121,7 +131,10 @@ func newQueuePlayCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return c.PlayQueuePosition(ctx, pos)
+			if err := c.PlayQueuePosition(ctx, pos); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "queue.play", map[string]any{"pos": pos})
 		},
 	}
 	return cmd
@@ -146,7 +159,10 @@ func newQueueRemoveCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return c.RemoveQueuePosition(ctx, pos)
+			if err := c.RemoveQueuePosition(ctx, pos); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "queue.remove", map[string]any{"pos": pos})
 		},
 	}
 	return cmd

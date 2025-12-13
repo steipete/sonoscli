@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -115,10 +114,28 @@ func newSearchSpotifyCmd(flags *rootFlags) *cobra.Command {
 				}
 			}
 
-			if flags.JSON {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-				return enc.Encode(results)
+			if isJSON(flags) {
+				if doOpen || doEnqueue {
+					selected := results[index-1]
+					return writeJSON(cmd, map[string]any{
+						"query":    query,
+						"type":     st,
+						"results":  results,
+						"selected": selected,
+						"action": map[string]any{
+							"enqueue": true,
+							"playNow": doOpen,
+						},
+					})
+				}
+				return writeJSON(cmd, results)
+			}
+
+			if isTSV(flags) {
+				for i, r := range results {
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%d\t%s\t%s\t%s\t%s\n", i+1, r.Type, r.Title, r.Subtitle, r.URI)
+				}
+				return nil
 			}
 
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 2, 2, ' ', 0)

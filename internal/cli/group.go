@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -69,10 +68,24 @@ func newGroupStatusCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 
-			if flags.JSON {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-				return enc.Encode(top)
+			if isJSON(flags) {
+				return writeJSON(cmd, top)
+			}
+			if isTSV(flags) {
+				for _, g := range top.Groups {
+					coord := g.Coordinator
+					for _, m := range g.Members {
+						if !m.IsVisible {
+							continue
+						}
+						role := "member"
+						if m.IsCoordinator {
+							role = "coordinator"
+						}
+						_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\t%s\t%s\t%s\n", g.ID, coord.Name, coord.IP, m.Name, m.IP, role)
+					}
+				}
+				return nil
 			}
 
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 2, 2, ' ', 0)
@@ -135,14 +148,24 @@ func newGroupJoinCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if joinerGroup.ID != "" && joinerGroup.ID == destGroup.ID {
-				return nil
+				return writeOK(cmd, flags, "group.join", map[string]any{
+					"joiner":  joiner,
+					"to":      dest,
+					"skipped": true,
+				})
 			}
 			if destGroup.Coordinator.UUID == "" {
 				return errors.New("destination group coordinator UUID missing")
 			}
 
 			c := newGroupingClient(joiner.IP, flags.Timeout)
-			return c.JoinGroup(cmd.Context(), destGroup.Coordinator.UUID)
+			if err := c.JoinGroup(cmd.Context(), destGroup.Coordinator.UUID); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "group.join", map[string]any{
+				"joiner": joiner,
+				"to":     dest,
+			})
 		},
 	}
 
@@ -175,7 +198,10 @@ func newGroupUnjoinCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 			c := newGroupingClient(member.IP, flags.Timeout)
-			return c.LeaveGroup(cmd.Context())
+			if err := c.LeaveGroup(cmd.Context()); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "group.unjoin", map[string]any{"member": member})
 		},
 	}
 	return cmd
@@ -250,17 +276,14 @@ func newGroupPartyCmd(flags *rootFlags) *cobra.Command {
 				}
 			}
 
-			if flags.JSON {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-				if err := enc.Encode(map[string]any{"to": dest, "results": results}); err != nil {
-					return err
-				}
-			}
-
 			if len(errs) > 0 {
 				return errors.Join(errs...)
 			}
+
+			if isJSON(flags) {
+				return writeJSON(cmd, map[string]any{"to": dest, "results": results})
+			}
+
 			return nil
 		},
 	}
@@ -325,17 +348,14 @@ func newGroupDissolveCmd(flags *rootFlags) *cobra.Command {
 				results = append(results, groupOpResult{Action: "leave", Target: m.Name, IP: m.IP})
 			}
 
-			if flags.JSON {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-				if err := enc.Encode(map[string]any{"group": group, "results": results}); err != nil {
-					return err
-				}
-			}
-
 			if len(errs) > 0 {
 				return errors.Join(errs...)
 			}
+
+			if isJSON(flags) {
+				return writeJSON(cmd, map[string]any{"group": group, "results": results})
+			}
+
 			return nil
 		},
 	}

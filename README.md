@@ -39,7 +39,7 @@ Discover speakers:
 
 ```bash
 ./sonos discover
-./sonos discover --json
+./sonos discover --format json
 ```
 
 Show status (text or JSON):
@@ -47,7 +47,7 @@ Show status (text or JSON):
 ```bash
 ./sonos status --name "Kitchen"
 ./sonos now --name "Kitchen"
-./sonos status --name "Kitchen" --json
+./sonos status --name "Kitchen" --format json
 ```
 
 Playback:
@@ -66,7 +66,7 @@ List the queue:
 
 ```bash
 ./sonos queue list --name "Kitchen"
-./sonos queue list --name "Kitchen" --json
+./sonos queue list --name "Kitchen" --format json
 ```
 
 Play or remove a queue entry (positions are 1-based):
@@ -111,7 +111,7 @@ List Sonos Favorites:
 
 ```bash
 ./sonos favorites list --name "Kitchen"
-./sonos favorites list --name "Kitchen" --json
+./sonos favorites list --name "Kitchen" --format json
 ```
 
 Play by index (from the list):
@@ -311,7 +311,8 @@ CI runs: `gofmt` check, `go vet`, `go test`, and `golangci-lint`.
 - `--ip <ip>`: target by IP
 - `--name <name>`: target by speaker name
 - `--timeout <duration>`: discovery/network timeout (default `5s`)
-- `--json`: JSON output where supported
+- `--format plain|json|tsv`: output format (defaults to `plain`)
+- `--json`: deprecated alias for `--format json`
 - `--debug`: reserved for future logging controls
 
 ## Troubleshooting

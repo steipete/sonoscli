@@ -27,18 +27,34 @@ func newMuteCmd(flags *rootFlags) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				fmt.Println(v)
+				if isJSON(flags) {
+					return writeJSON(cmd, map[string]any{"mute": v, "coordinatorIP": c.IP})
+				}
+				if isTSV(flags) {
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "mute\t%v\n", v)
+					return nil
+				}
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), v)
 				return nil
 			case "on":
-				return c.SetMute(ctx, true)
+				if err := c.SetMute(ctx, true); err != nil {
+					return err
+				}
+				return writeOK(cmd, flags, "mute.on", map[string]any{"coordinatorIP": c.IP})
 			case "off":
-				return c.SetMute(ctx, false)
+				if err := c.SetMute(ctx, false); err != nil {
+					return err
+				}
+				return writeOK(cmd, flags, "mute.off", map[string]any{"coordinatorIP": c.IP})
 			case "toggle":
 				v, err := c.GetMute(ctx)
 				if err != nil {
 					return err
 				}
-				return c.SetMute(ctx, !v)
+				if err := c.SetMute(ctx, !v); err != nil {
+					return err
+				}
+				return writeOK(cmd, flags, "mute.toggle", map[string]any{"coordinatorIP": c.IP, "mute": !v})
 			default:
 				return errors.New("expected on|off|toggle|get")
 			}

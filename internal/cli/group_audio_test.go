@@ -71,7 +71,7 @@ func TestGroupVolumeGetPlain(t *testing.T) {
 }
 
 func TestGroupVolumeGetJSON(t *testing.T) {
-	flags := &rootFlags{Name: "Kitchen", Timeout: 2 * time.Second, JSON: true}
+	flags := &rootFlags{Name: "Kitchen", Timeout: 2 * time.Second, Format: formatJSON}
 	cmd := newGroupVolumeCmd(flags)
 
 	fake := &fakeGroupAudioClient{groupVolume: 7}

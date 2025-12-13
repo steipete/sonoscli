@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -13,7 +14,8 @@ type rootFlags struct {
 	IP      string
 	Name    string
 	Timeout time.Duration
-	JSON    bool
+	Format  string
+	JSON    bool // Deprecated: use --format json
 	Debug   bool
 }
 
@@ -30,10 +32,29 @@ func Execute() error {
 	}
 	rootCmd.SetVersionTemplate("sonos {{.Version}}\n")
 
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		format := strings.TrimSpace(flags.Format)
+		if format == "" {
+			format = formatPlain
+		}
+		format = strings.ToLower(format)
+		if flags.JSON && format == formatPlain {
+			format = formatJSON
+		}
+		norm, err := normalizeFormat(format)
+		if err != nil {
+			return err
+		}
+		flags.Format = norm
+		return nil
+	}
+
 	rootCmd.PersistentFlags().StringVar(&flags.IP, "ip", "", "Target speaker IP address")
 	rootCmd.PersistentFlags().StringVar(&flags.Name, "name", "", "Target speaker name")
 	rootCmd.PersistentFlags().DurationVar(&flags.Timeout, "timeout", 5*time.Second, "Timeout for discovery and network calls")
-	rootCmd.PersistentFlags().BoolVar(&flags.JSON, "json", false, "Output JSON where supported")
+	rootCmd.PersistentFlags().StringVar(&flags.Format, "format", formatPlain, "Output format: plain|json|tsv")
+	rootCmd.PersistentFlags().BoolVar(&flags.JSON, "json", false, "Deprecated: use --format json")
+	_ = rootCmd.PersistentFlags().MarkDeprecated("json", "use --format json")
 	rootCmd.PersistentFlags().BoolVar(&flags.Debug, "debug", false, "Enable debug logging")
 
 	rootCmd.AddCommand(newDiscoverCmd(flags))

@@ -1,9 +1,7 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 
 	"github.com/spf13/cobra"
@@ -31,14 +29,12 @@ func newDiscoverCmd(flags *rootFlags) *cobra.Command {
 				return devices[i].Name < devices[j].Name
 			})
 
-			if flags.JSON {
-				enc := json.NewEncoder(os.Stdout)
-				enc.SetIndent("", "  ")
-				return enc.Encode(devices)
+			if isJSON(flags) {
+				return writeJSON(cmd, devices)
 			}
 
 			for _, d := range devices {
-				fmt.Printf("%s\t%s\t%s\n", d.Name, d.IP, d.UDN)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\n", d.Name, d.IP, d.UDN)
 			}
 			return nil
 		},

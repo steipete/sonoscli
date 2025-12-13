@@ -65,7 +65,7 @@ func TestSearchSpotify_NoCredentials(t *testing.T) {
 }
 
 func TestSearchSpotify_JSONOutput(t *testing.T) {
-	flags := &rootFlags{Timeout: 2, JSON: true}
+	flags := &rootFlags{Timeout: 2, Format: formatJSON}
 	cmd := newSearchSpotifyCmd(flags)
 
 	orig := newSpotifySearcher

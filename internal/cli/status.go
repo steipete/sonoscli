@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -36,7 +35,7 @@ func newStatusCmd(flags *rootFlags) *cobra.Command {
 		Use:          "status",
 		Aliases:      []string{"now"},
 		Short:        "Show current playback status",
-		Long:         "Prints coordinator status (transport state, track URI, time, volume/mute). Parses TrackMetaData when available to show title/artist/album/album art. Use --json for machine-readable output.",
+		Long:         "Prints coordinator status (transport state, track URI, time, volume/mute). Parses TrackMetaData when available to show title/artist/album/album art. Use --format json for machine-readable output.",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := validateTarget(flags); err != nil {
@@ -71,10 +70,38 @@ func newStatusCmd(flags *rootFlags) *cobra.Command {
 				Mute:        mute,
 			}
 
-			if flags.JSON {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-				return enc.Encode(out)
+			if isJSON(flags) {
+				return writeJSON(cmd, out)
+			}
+
+			if isTSV(flags) {
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "speaker\t%s\n", dev.Name)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "ip\t%s\n", dev.IP)
+				if dev.UDN != "" {
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "udn\t%s\n", dev.UDN)
+				}
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "state\t%s\n", transport.State)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "track\t%s\n", position.Track)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "uri\t%s\n", position.TrackURI)
+				if nowPlaying != nil {
+					if nowPlaying.Title != "" {
+						_, _ = fmt.Fprintf(cmd.OutOrStdout(), "title\t%s\n", nowPlaying.Title)
+					}
+					if nowPlaying.Artist != "" {
+						_, _ = fmt.Fprintf(cmd.OutOrStdout(), "artist\t%s\n", nowPlaying.Artist)
+					}
+					if nowPlaying.Album != "" {
+						_, _ = fmt.Fprintf(cmd.OutOrStdout(), "album\t%s\n", nowPlaying.Album)
+					}
+					if nowPlaying.AlbumArtURI != "" {
+						_, _ = fmt.Fprintf(cmd.OutOrStdout(), "album_art\t%s\n", albumArtURL)
+					}
+				}
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "time\t%s\n", position.RelTime)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "duration\t%s\n", position.TrackDuration)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "volume\t%d\n", vol)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "mute\t%v\n", mute)
+				return nil
 			}
 
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Speaker:\t%s (%s)\n", dev.Name, dev.IP)

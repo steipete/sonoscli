@@ -70,12 +70,12 @@ Key services/actions:
 ### Discovery
 
 - `sonos discover` – list speakers (room name, IP, UDN)
-  - `--json` supported.
+  - `--format json` supported.
 
 ### Status
 
 - `sonos status --name "<Room>"` (or `sonos now`) – show playback status, current URI, time, volume/mute, and parsed now-playing metadata when available (`Title/Artist/Album/AlbumArt`).
-  - `--json` supported.
+  - `--format json` supported.
 
 ### Transport
 
@@ -88,14 +88,14 @@ Key services/actions:
 
 ### Queue
 
-- `sonos queue list --name "<Room>" [--start N] [--limit N]` (and `--json`)
+- `sonos queue list --name "<Room>" [--start N] [--limit N]` (and `--format json|tsv`)
 - `sonos queue play --name "<Room>" <pos>` (1-based)
 - `sonos queue remove --name "<Room>" <pos>` (1-based)
 - `sonos queue clear --name "<Room>"`
 
 ### Favorites
 
-- `sonos favorites list --name "<Room>" [--start N] [--limit N]` (and `--json`)
+- `sonos favorites list --name "<Room>" [--start N] [--limit N]` (and `--format json|tsv`)
 - `sonos favorites open --name "<Room>" --index <N>`
 - `sonos favorites open --name "<Room>" "<title>"`
 
@@ -109,7 +109,7 @@ Key services/actions:
 
 - `sonos scene save <name>` – capture grouping + per-room volume/mute
 - `sonos scene apply <name>` – restore grouping + per-room volume/mute
-- `sonos scene list` – list saved scenes (`--json` supported)
+- `sonos scene list` – list saved scenes (`--format json|tsv` supported)
 - `sonos scene delete <name>` – delete a scene
 
 ### Spotify (no Spotify credentials required)
@@ -137,7 +137,7 @@ Implementation detail: we generate Sonos-compatible DIDL metadata similar to SoC
 ### Grouping
 
 - `sonos group status` – show all groups, coordinators, and members
-  - `--json` supported.
+  - `--format json|tsv` supported.
 - `sonos group join --name "<Room>" --to "<OtherRoomOrIP>"`
   - Sends `AVTransport.SetAVTransportURI` to the *joining* speaker with `x-rincon:<COORDINATOR_UUID>`.
   - Room selection supports fuzzy substring matching; ambiguous matches return suggestions.
@@ -161,7 +161,8 @@ Grouping actions are different:
 ## Output Formats
 
 - Human-readable output is tab/line oriented and intended for terminal use.
-- `--json` is available on commands where structured output is valuable.
+- `--format plain|json|tsv` controls output formatting where applicable.
+- `--json` is retained as a deprecated alias for `--format json`.
 
 ## Testing Strategy
 

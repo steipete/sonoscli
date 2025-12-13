@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -44,10 +43,8 @@ func newGroupVolumeCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if flags.JSON {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-				return enc.Encode(map[string]int{"volume": v})
+			if isJSON(flags) {
+				return writeJSON(cmd, map[string]int{"volume": v})
 			}
 			_, _ = fmt.Fprintln(cmd.OutOrStdout(), v)
 			return nil
@@ -71,7 +68,10 @@ func newGroupVolumeCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return c.SetGroupVolume(cmd.Context(), v)
+			if err := c.SetGroupVolume(cmd.Context(), v); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "group.volume.set", map[string]any{"volume": v})
 		},
 	})
 
@@ -101,10 +101,8 @@ func newGroupMuteCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if flags.JSON {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-				return enc.Encode(map[string]bool{"mute": m})
+			if isJSON(flags) {
+				return writeJSON(cmd, map[string]bool{"mute": m})
 			}
 			_, _ = fmt.Fprintln(cmd.OutOrStdout(), m)
 			return nil
@@ -123,7 +121,10 @@ func newGroupMuteCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return c.SetGroupMute(cmd.Context(), true)
+			if err := c.SetGroupMute(cmd.Context(), true); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "group.mute.on", map[string]any{"mute": true})
 		},
 	})
 
@@ -139,7 +140,10 @@ func newGroupMuteCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return c.SetGroupMute(cmd.Context(), false)
+			if err := c.SetGroupMute(cmd.Context(), false); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "group.mute.off", map[string]any{"mute": false})
 		},
 	})
 
@@ -159,7 +163,10 @@ func newGroupMuteCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return c.SetGroupMute(cmd.Context(), !m)
+			if err := c.SetGroupMute(cmd.Context(), !m); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "group.mute.toggle", map[string]any{"mute": !m})
 		},
 	})
 
@@ -187,7 +194,10 @@ func newGroupMuteCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return c.SetGroupMute(cmd.Context(), mute)
+			if err := c.SetGroupMute(cmd.Context(), mute); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "group.mute.set", map[string]any{"mute": mute})
 		},
 	})
 

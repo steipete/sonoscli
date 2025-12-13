@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -53,10 +52,18 @@ func newFavoritesListCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if flags.JSON {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-				return enc.Encode(page)
+			if isJSON(flags) {
+				return writeJSON(cmd, page)
+			}
+			if isTSV(flags) {
+				for _, it := range page.Items {
+					title := it.Item.Title
+					if title == "" {
+						title = it.Item.ID
+					}
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%d\t%s\t%s\n", it.Position, title, it.Item.URI)
+				}
+				return nil
 			}
 
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 2, 2, ' ', 0)
@@ -111,7 +118,10 @@ func newFavoritesOpenCmd(flags *rootFlags) *cobra.Command {
 				if len(page.Items) == 0 {
 					return errors.New("favorite index out of range: " + strconv.Itoa(index))
 				}
-				return c.PlayFavorite(cmd.Context(), page.Items[0].Item)
+				if err := c.PlayFavorite(cmd.Context(), page.Items[0].Item); err != nil {
+					return err
+				}
+				return writeOK(cmd, flags, "favorites.open", map[string]any{"favorite": page.Items[0]})
 			}
 
 			// Search pages until we find a matching title.
@@ -124,7 +134,10 @@ func newFavoritesOpenCmd(flags *rootFlags) *cobra.Command {
 				}
 				for _, it := range page.Items {
 					if strings.EqualFold(it.Item.Title, title) {
-						return c.PlayFavorite(cmd.Context(), it.Item)
+						if err := c.PlayFavorite(cmd.Context(), it.Item); err != nil {
+							return err
+						}
+						return writeOK(cmd, flags, "favorites.open", map[string]any{"favorite": it})
 					}
 				}
 				start += page.NumberReturned

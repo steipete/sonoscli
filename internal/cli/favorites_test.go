@@ -37,7 +37,7 @@ func (f *fakeFavoritesClient) PlayFavorite(ctx context.Context, favorite sonos.D
 }
 
 func TestFavoritesListJSON(t *testing.T) {
-	flags := &rootFlags{Name: "Kitchen", Timeout: 2 * time.Second, JSON: true}
+	flags := &rootFlags{Name: "Kitchen", Timeout: 2 * time.Second, Format: formatJSON}
 	cmd := newFavoritesListCmd(flags)
 
 	fake := &fakeFavoritesClient{

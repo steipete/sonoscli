@@ -102,7 +102,7 @@ func TestStatusShowsNowPlayingFields(t *testing.T) {
 }
 
 func TestStatusJSONIncludesNowPlaying(t *testing.T) {
-	flags := &rootFlags{Name: "Office", Timeout: 2 * time.Second, JSON: true}
+	flags := &rootFlags{Name: "Office", Timeout: 2 * time.Second, Format: formatJSON}
 
 	didl := `<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">
   <item id="R:0/0/0" parentID="R:0/0" restricted="true">

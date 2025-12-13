@@ -56,7 +56,10 @@ func newPlayURICmd(flags *rootFlags) *cobra.Command {
 			if err := c.SetAVTransportURI(cmd.Context(), uri, meta); err != nil {
 				return err
 			}
-			return c.Play(cmd.Context())
+			if err := c.Play(cmd.Context()); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "play-uri", map[string]any{"uri": uri, "radio": radio})
 		},
 	}
 
@@ -113,7 +116,10 @@ func newLineInCmd(flags *rootFlags) *cobra.Command {
 			if err := c.SetAVTransportURI(cmd.Context(), uri, ""); err != nil {
 				return err
 			}
-			return c.Play(cmd.Context())
+			if err := c.Play(cmd.Context()); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "linein", map[string]any{"from": mem, "uri": uri})
 		},
 	}
 
@@ -163,7 +169,10 @@ func newTVCmd(flags *rootFlags) *cobra.Command {
 			if err := c.SetAVTransportURI(cmd.Context(), uri, ""); err != nil {
 				return err
 			}
-			return c.Play(cmd.Context())
+			if err := c.Play(cmd.Context()); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "tv", map[string]any{"target": mem, "uri": uri})
 		},
 	}
 	return cmd

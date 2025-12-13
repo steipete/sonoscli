@@ -1,6 +1,8 @@
 package cli
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/spf13/cobra"
+)
 
 func newPlayCmd(flags *rootFlags) *cobra.Command {
 	return &cobra.Command{
@@ -13,7 +15,10 @@ func newPlayCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return c.Play(ctx)
+			if err := c.Play(ctx); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "play", map[string]any{"coordinatorIP": c.IP})
 		},
 	}
 }
@@ -29,7 +34,10 @@ func newPauseCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return c.Pause(ctx)
+			if err := c.Pause(ctx); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "pause", map[string]any{"coordinatorIP": c.IP})
 		},
 	}
 }
@@ -45,7 +53,10 @@ func newStopCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return c.Stop(ctx)
+			if err := c.Stop(ctx); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "stop", map[string]any{"coordinatorIP": c.IP})
 		},
 	}
 }
@@ -61,7 +72,10 @@ func newNextCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return c.Next(ctx)
+			if err := c.Next(ctx); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "next", map[string]any{"coordinatorIP": c.IP})
 		},
 	}
 }
@@ -77,7 +91,10 @@ func newPrevCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return c.Previous(ctx)
+			if err := c.Previous(ctx); err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "prev", map[string]any{"coordinatorIP": c.IP})
 		},
 	}
 }

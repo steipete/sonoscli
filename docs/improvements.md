@@ -87,6 +87,8 @@ Legend:
 - Add:
   - `--format json|tsv|plain` (or expand `--json` to a more general format flag)
   - Consistent machine-readable JSON across all commands.
+ - Status:
+   - Implemented in `0.1.10` (`--json` retained as a deprecated alias).
 
 ## P2 (advanced / optional)
 

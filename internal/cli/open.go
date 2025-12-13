@@ -27,12 +27,15 @@ func newOpenCmd(flags *rootFlags) *cobra.Command {
 			if !ok {
 				return errors.New("currently only Spotify refs are supported by `open`")
 			}
-			_, err = c.EnqueueSpotify(ctx, ref, sonos.EnqueueOptions{
+			pos, err := c.EnqueueSpotify(ctx, ref, sonos.EnqueueOptions{
 				Title:   title,
 				AsNext:  asNext,
 				PlayNow: true,
 			})
-			return err
+			if err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "open", map[string]any{"coordinatorIP": c.IP, "pos": pos})
 		},
 	}
 
@@ -61,12 +64,15 @@ func newEnqueueCmd(flags *rootFlags) *cobra.Command {
 			if !ok {
 				return errors.New("currently only Spotify refs are supported by `enqueue`")
 			}
-			_, err = c.EnqueueSpotify(ctx, ref, sonos.EnqueueOptions{
+			pos, err := c.EnqueueSpotify(ctx, ref, sonos.EnqueueOptions{
 				Title:   title,
 				AsNext:  asNext,
 				PlayNow: false,
 			})
-			return err
+			if err != nil {
+				return err
+			}
+			return writeOK(cmd, flags, "enqueue", map[string]any{"coordinatorIP": c.IP, "pos": pos})
 		},
 	}
 

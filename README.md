@@ -270,6 +270,13 @@ Search via Sonos (SMAPI; no Spotify Web API credentials):
 ./sonos smapi search --service "Spotify" --category tracks --open --name "Office" "gareth emery"
 ```
 
+Play from a search query (shortcut for SMAPI search + open):
+
+```bash
+./sonos play spotify --name "Office" "gareth emery"
+./sonos play spotify --name "Office" --category albums "gareth emery"
+```
+
 SMAPI tokens are stored under your user config dir as `sonoscli/smapi_tokens.json` (e.g. `~/.config/sonoscli/smapi_tokens.json` on macOS/Linux).
 
 Search via Spotify Web API (prints playable URIs):

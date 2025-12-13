@@ -5,7 +5,7 @@ import (
 )
 
 func newPlayCmd(flags *rootFlags) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "play",
 		Short: "Resume playback",
 		Long:  "Sends AVTransport.Play to the group coordinator.",
@@ -21,6 +21,9 @@ func newPlayCmd(flags *rootFlags) *cobra.Command {
 			return writeOK(cmd, flags, "play", map[string]any{"coordinatorIP": c.IP})
 		},
 	}
+
+	cmd.AddCommand(newPlaySpotifyCmd(flags))
+	return cmd
 }
 
 func newPauseCmd(flags *rootFlags) *cobra.Command {

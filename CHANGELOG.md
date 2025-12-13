@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on “Keep a Changelog”, and this project aims to follow Semantic Versioning.
 
+## [0.1.18] - 2025-12-13
+
+### Added
+- `sonos play spotify "<query>"`:
+  - Sonos SMAPI search (no Spotify Web API credentials).
+  - Enqueues and starts playback on the target room (`--name/--ip`).
+
 ## [0.1.17] - 2025-12-13
 
 ### Added

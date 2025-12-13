@@ -79,6 +79,8 @@ Legend:
   - `group join` should accept fuzzy matching and show suggestions on ambiguity.
   - `party` mode: join all speakers to a target.
   - `group dissolve`: unjoin all members of a group.
+ - Status:
+   - Implemented in `0.1.9`.
 
 8) **Output formats**
 - Value: Med | Effort: S | Deps: none

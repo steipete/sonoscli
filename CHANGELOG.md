@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on “Keep a Changelog”, and this project aims to follow Semantic Versioning.
 
+## [0.1.9] - 2025-12-13
+
+### Added
+- Grouping ergonomics:
+  - Fuzzy room matching for `sonos group join --to ...` (substring match, with suggestions on ambiguity).
+  - `sonos group party --to "<RoomOrIP>"` to join all visible speakers to a target group.
+  - `sonos group dissolve --name "<Room>"` to ungroup every member of a group (coordinator last).
+
 ## [0.1.8] - 2025-12-13
 
 ### Added

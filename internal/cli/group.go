@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -46,6 +47,8 @@ func newGroupCmd(flags *rootFlags) *cobra.Command {
 	cmd.AddCommand(newGroupStatusCmd(flags))
 	cmd.AddCommand(newGroupJoinCmd(flags))
 	cmd.AddCommand(newGroupUnjoinCmd(flags))
+	cmd.AddCommand(newGroupPartyCmd(flags))
+	cmd.AddCommand(newGroupDissolveCmd(flags))
 	cmd.AddCommand(newGroupVolumeCmd(flags))
 	cmd.AddCommand(newGroupMuteCmd(flags))
 	return cmd
@@ -178,6 +181,167 @@ func newGroupUnjoinCmd(flags *rootFlags) *cobra.Command {
 	return cmd
 }
 
+type groupOpResult struct {
+	Action  string `json:"action"`
+	Target  string `json:"target"`
+	IP      string `json:"ip"`
+	Skipped bool   `json:"skipped"`
+	Error   string `json:"error,omitempty"`
+}
+
+func newGroupPartyCmd(flags *rootFlags) *cobra.Command {
+	var to string
+
+	cmd := &cobra.Command{
+		Use:          "party --to <name-or-ip>",
+		Short:        "Join all speakers to a target group",
+		Long:         "Makes all visible speakers join the group coordinated by --to.",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			to = strings.TrimSpace(to)
+			if to == "" {
+				return errors.New("--to is required")
+			}
+
+			tg, err := newTopologyGetter(cmd.Context(), flags.Timeout)
+			if err != nil {
+				return err
+			}
+			top, err := tg.GetTopology(cmd.Context())
+			if err != nil {
+				return err
+			}
+
+			dest, err := resolveMember(top, to, "")
+			if err != nil {
+				return err
+			}
+			destGroup, ok := top.GroupForIP(dest.IP)
+			if !ok {
+				return errors.New("destination speaker not found in any group")
+			}
+			if destGroup.Coordinator.UUID == "" {
+				return errors.New("destination group coordinator UUID missing")
+			}
+
+			inDest := map[string]struct{}{}
+			for _, m := range destGroup.Members {
+				inDest[m.IP] = struct{}{}
+			}
+
+			var results []groupOpResult
+			var errs []error
+			for _, g := range top.Groups {
+				for _, m := range g.Members {
+					if !m.IsVisible {
+						continue
+					}
+					if _, ok := inDest[m.IP]; ok {
+						results = append(results, groupOpResult{Action: "join", Target: m.Name, IP: m.IP, Skipped: true})
+						continue
+					}
+					c := newGroupingClient(m.IP, flags.Timeout)
+					if err := c.JoinGroup(cmd.Context(), destGroup.Coordinator.UUID); err != nil {
+						errs = append(errs, fmt.Errorf("%s (%s): %w", m.Name, m.IP, err))
+						results = append(results, groupOpResult{Action: "join", Target: m.Name, IP: m.IP, Error: err.Error()})
+						continue
+					}
+					results = append(results, groupOpResult{Action: "join", Target: m.Name, IP: m.IP})
+				}
+			}
+
+			if flags.JSON {
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetIndent("", "  ")
+				if err := enc.Encode(map[string]any{"to": dest, "results": results}); err != nil {
+					return err
+				}
+			}
+
+			if len(errs) > 0 {
+				return errors.Join(errs...)
+			}
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&to, "to", "", "Destination speaker name or IP to join")
+	_ = cmd.MarkFlagRequired("to")
+	return cmd
+}
+
+func newGroupDissolveCmd(flags *rootFlags) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "dissolve",
+		Short:        "Ungroup all members of a group",
+		Long:         "Makes every member of the target speaker's group (via --name/--ip) become a standalone coordinator.",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := validateTarget(flags); err != nil {
+				return err
+			}
+
+			tg, err := newTopologyGetter(cmd.Context(), flags.Timeout)
+			if err != nil {
+				return err
+			}
+			top, err := tg.GetTopology(cmd.Context())
+			if err != nil {
+				return err
+			}
+
+			member, err := resolveMember(top, flags.Name, flags.IP)
+			if err != nil {
+				return err
+			}
+			group, ok := top.GroupForIP(member.IP)
+			if !ok {
+				return errors.New("speaker not found in any group")
+			}
+
+			var members []sonos.Member
+			for _, m := range group.Members {
+				if !m.IsVisible {
+					continue
+				}
+				members = append(members, m)
+			}
+			sort.SliceStable(members, func(i, j int) bool {
+				if members[i].IsCoordinator == members[j].IsCoordinator {
+					return members[i].Name < members[j].Name
+				}
+				return !members[i].IsCoordinator && members[j].IsCoordinator
+			})
+
+			var results []groupOpResult
+			var errs []error
+			for _, m := range members {
+				c := newGroupingClient(m.IP, flags.Timeout)
+				if err := c.LeaveGroup(cmd.Context()); err != nil {
+					errs = append(errs, fmt.Errorf("%s (%s): %w", m.Name, m.IP, err))
+					results = append(results, groupOpResult{Action: "leave", Target: m.Name, IP: m.IP, Error: err.Error()})
+					continue
+				}
+				results = append(results, groupOpResult{Action: "leave", Target: m.Name, IP: m.IP})
+			}
+
+			if flags.JSON {
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetIndent("", "  ")
+				if err := enc.Encode(map[string]any{"group": group, "results": results}); err != nil {
+					return err
+				}
+			}
+
+			if len(errs) > 0 {
+				return errors.Join(errs...)
+			}
+			return nil
+		},
+	}
+	return cmd
+}
+
 func resolveMember(top sonos.Topology, name string, ip string) (sonos.Member, error) {
 	if strings.TrimSpace(ip) != "" {
 		mem, ok := top.FindByIP(strings.TrimSpace(ip))
@@ -188,8 +352,9 @@ func resolveMember(top sonos.Topology, name string, ip string) (sonos.Member, er
 	}
 
 	// If name looks like an IP address, treat it as such (for --to).
-	if strings.TrimSpace(name) != "" && net.ParseIP(strings.TrimSpace(name)) != nil {
-		mem, ok := top.FindByIP(strings.TrimSpace(name))
+	name = strings.TrimSpace(name)
+	if name != "" && net.ParseIP(name) != nil {
+		mem, ok := top.FindByIP(name)
 		if !ok {
 			return sonos.Member{}, errors.New("speaker ip not found in topology: " + name)
 		}
@@ -208,6 +373,23 @@ func resolveMember(top sonos.Topology, name string, ip string) (sonos.Member, er
 		}
 	}
 	if !ok {
+		// Try fuzzy substring match (case-insensitive). If ambiguous, return suggestions.
+		needle := strings.ToLower(name)
+		if needle != "" {
+			matches := make([]string, 0, 4)
+			for k := range top.ByName {
+				if strings.Contains(strings.ToLower(k), needle) {
+					matches = append(matches, k)
+				}
+			}
+			if len(matches) == 1 {
+				return top.ByName[matches[0]], nil
+			}
+			if len(matches) > 1 {
+				sort.Strings(matches)
+				return sonos.Member{}, fmt.Errorf("ambiguous speaker name %q; matches: %s", name, strings.Join(matches, ", "))
+			}
+		}
 		return sonos.Member{}, errors.New("speaker name not found in topology: " + name)
 	}
 	return mem, nil

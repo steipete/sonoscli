@@ -166,10 +166,29 @@ Join `Bedroom` into `Living Room`’s group:
 ./sonos group join --name "Bedroom" --to "Living Room"
 ```
 
+Room targeting supports fuzzy substring matching (and will suggest matches on ambiguity):
+
+```bash
+./sonos group join --name "Off" --to "Bar"     # "Office" joins "Bar"
+./sonos group join --name "Bed" --to "Liv"     # "Bedroom" joins "Living Room"
+```
+
 Ungroup a speaker (make it standalone):
 
 ```bash
 ./sonos group unjoin --name "Bedroom"
+```
+
+Party mode (join all visible speakers to a target group):
+
+```bash
+./sonos group party --to "Bar"
+```
+
+Dissolve a group (ungroup all members of the group):
+
+```bash
+./sonos group dissolve --name "Living Room"
 ```
 
 Ungroup Office and play on Office only:

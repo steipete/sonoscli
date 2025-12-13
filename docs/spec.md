@@ -140,8 +140,13 @@ Implementation detail: we generate Sonos-compatible DIDL metadata similar to SoC
   - `--json` supported.
 - `sonos group join --name "<Room>" --to "<OtherRoomOrIP>"`
   - Sends `AVTransport.SetAVTransportURI` to the *joining* speaker with `x-rincon:<COORDINATOR_UUID>`.
+  - Room selection supports fuzzy substring matching; ambiguous matches return suggestions.
 - `sonos group unjoin --name "<Room>"`
   - Sends `AVTransport.BecomeCoordinatorOfStandaloneGroup` to the target speaker.
+- `sonos group party --to "<RoomOrIP>"`
+  - Joins all visible speakers to the target group.
+- `sonos group dissolve --name "<Room>"`
+  - Ungroups every member of the target group (leaves members first, coordinator last).
 - `sonos group volume get|set --name "<Room>" <0-100>`
 - `sonos group mute get|on|off|toggle --name "<Room>"`
 

@@ -37,6 +37,44 @@ func (f *fakeGroupingClient) LeaveGroup(ctx context.Context) error {
 	return f.leaveErr
 }
 
+func TestResolveMemberFuzzyUnique(t *testing.T) {
+	top := sonos.Topology{
+		ByName: map[string]sonos.Member{
+			"Office":  {Name: "Office", IP: "192.168.1.10"},
+			"Kitchen": {Name: "Kitchen", IP: "192.168.1.11"},
+		},
+	}
+
+	mem, err := resolveMember(top, "Off", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mem.Name != "Office" {
+		t.Fatalf("unexpected member: %+v", mem)
+	}
+}
+
+func TestResolveMemberFuzzyAmbiguous(t *testing.T) {
+	top := sonos.Topology{
+		ByName: map[string]sonos.Member{
+			"Office":      {Name: "Office", IP: "192.168.1.10"},
+			"Home Office": {Name: "Home Office", IP: "192.168.1.12"},
+		},
+	}
+
+	_, err := resolveMember(top, "off", "")
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "ambiguous") {
+		t.Fatalf("unexpected error: %s", msg)
+	}
+	if !strings.Contains(msg, "Home Office") || !strings.Contains(msg, "Office") {
+		t.Fatalf("missing suggestions: %s", msg)
+	}
+}
+
 func TestGroupJoinByName(t *testing.T) {
 	flags := &rootFlags{Name: "Bedroom", Timeout: 2 * time.Second}
 	cmd := newGroupJoinCmd(flags)
@@ -112,6 +150,168 @@ func TestGroupJoinByName(t *testing.T) {
 	}
 	if fakeClient.joinedUUID != "RINCON_LR1400" {
 		t.Fatalf("unexpected coordinator uuid: %q", fakeClient.joinedUUID)
+	}
+}
+
+type recordingGroupingClient struct {
+	ip          string
+	joinedUUIDs *[]string
+	leaveIPs    *[]string
+}
+
+func (r *recordingGroupingClient) JoinGroup(ctx context.Context, coordinatorUUID string) error {
+	*r.joinedUUIDs = append(*r.joinedUUIDs, r.ip+"->"+coordinatorUUID)
+	return nil
+}
+
+func (r *recordingGroupingClient) LeaveGroup(ctx context.Context) error {
+	*r.leaveIPs = append(*r.leaveIPs, r.ip)
+	return nil
+}
+
+func TestGroupPartyJoinsAllNonDestinationMembers(t *testing.T) {
+	flags := &rootFlags{Timeout: 2 * time.Second}
+	cmd := newGroupPartyCmd(flags)
+
+	top := sonos.Topology{
+		Groups: []sonos.Group{
+			{
+				ID: "G1",
+				Coordinator: sonos.Member{
+					Name:          "Bar",
+					IP:            "192.168.1.10",
+					UUID:          "RINCON_BAR1400",
+					IsCoordinator: true,
+					IsVisible:     true,
+				},
+				Members: []sonos.Member{
+					{Name: "Bar", IP: "192.168.1.10", UUID: "RINCON_BAR1400", IsCoordinator: true, IsVisible: true},
+					{Name: "Kitchen", IP: "192.168.1.11", UUID: "RINCON_K1400", IsVisible: true},
+				},
+			},
+			{
+				ID: "G2",
+				Coordinator: sonos.Member{
+					Name:          "Office",
+					IP:            "192.168.1.20",
+					UUID:          "RINCON_OFF1400",
+					IsCoordinator: true,
+					IsVisible:     true,
+				},
+				Members: []sonos.Member{
+					{Name: "Office", IP: "192.168.1.20", UUID: "RINCON_OFF1400", IsCoordinator: true, IsVisible: true},
+					{Name: "Invisible", IP: "192.168.1.21", UUID: "RINCON_INV1400", IsVisible: false},
+				},
+			},
+		},
+		ByName: map[string]sonos.Member{
+			"Bar":     {Name: "Bar", IP: "192.168.1.10", UUID: "RINCON_BAR1400"},
+			"Kitchen": {Name: "Kitchen", IP: "192.168.1.11", UUID: "RINCON_K1400"},
+			"Office":  {Name: "Office", IP: "192.168.1.20", UUID: "RINCON_OFF1400"},
+		},
+		ByIP: map[string]sonos.Member{
+			"192.168.1.10": {Name: "Bar", IP: "192.168.1.10", UUID: "RINCON_BAR1400"},
+			"192.168.1.11": {Name: "Kitchen", IP: "192.168.1.11", UUID: "RINCON_K1400"},
+			"192.168.1.20": {Name: "Office", IP: "192.168.1.20", UUID: "RINCON_OFF1400"},
+		},
+	}
+
+	origTG := newTopologyGetter
+	origGC := newGroupingClient
+	t.Cleanup(func() {
+		newTopologyGetter = origTG
+		newGroupingClient = origGC
+	})
+
+	newTopologyGetter = func(ctx context.Context, timeout time.Duration) (topologyGetter, error) {
+		return &fakeTopologyGetter{top: top}, nil
+	}
+
+	var joined []string
+	var left []string
+	newGroupingClient = func(ip string, timeout time.Duration) groupingClient {
+		return &recordingGroupingClient{ip: ip, joinedUUIDs: &joined, leaveIPs: &left}
+	}
+
+	cmd.SetArgs([]string{"--to", "Bar"})
+	cmd.SetOut(newDiscardWriter())
+	cmd.SetErr(newDiscardWriter())
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	if err := cmd.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(joined) != 1 {
+		t.Fatalf("expected 1 join call, got %d: %#v", len(joined), joined)
+	}
+	if joined[0] != "192.168.1.20->RINCON_BAR1400" {
+		t.Fatalf("unexpected join operation: %s", joined[0])
+	}
+}
+
+func TestGroupDissolveLeavesAllMembersCoordinatorLast(t *testing.T) {
+	flags := &rootFlags{Name: "Office", Timeout: 2 * time.Second}
+	cmd := newGroupDissolveCmd(flags)
+
+	top := sonos.Topology{
+		Groups: []sonos.Group{
+			{
+				ID: "G1",
+				Coordinator: sonos.Member{
+					Name:          "Bar",
+					IP:            "192.168.1.10",
+					UUID:          "RINCON_BAR1400",
+					IsCoordinator: true,
+					IsVisible:     true,
+				},
+				Members: []sonos.Member{
+					{Name: "Bar", IP: "192.168.1.10", UUID: "RINCON_BAR1400", IsCoordinator: true, IsVisible: true},
+					{Name: "Office", IP: "192.168.1.20", UUID: "RINCON_OFF1400", IsVisible: true},
+				},
+			},
+		},
+		ByName: map[string]sonos.Member{
+			"Bar":    {Name: "Bar", IP: "192.168.1.10", UUID: "RINCON_BAR1400"},
+			"Office": {Name: "Office", IP: "192.168.1.20", UUID: "RINCON_OFF1400"},
+		},
+		ByIP: map[string]sonos.Member{
+			"192.168.1.10": {Name: "Bar", IP: "192.168.1.10", UUID: "RINCON_BAR1400"},
+			"192.168.1.20": {Name: "Office", IP: "192.168.1.20", UUID: "RINCON_OFF1400"},
+		},
+	}
+
+	origTG := newTopologyGetter
+	origGC := newGroupingClient
+	t.Cleanup(func() {
+		newTopologyGetter = origTG
+		newGroupingClient = origGC
+	})
+
+	newTopologyGetter = func(ctx context.Context, timeout time.Duration) (topologyGetter, error) {
+		return &fakeTopologyGetter{top: top}, nil
+	}
+
+	var joined []string
+	var left []string
+	newGroupingClient = func(ip string, timeout time.Duration) groupingClient {
+		return &recordingGroupingClient{ip: ip, joinedUUIDs: &joined, leaveIPs: &left}
+	}
+
+	cmd.SetArgs([]string{})
+	cmd.SetOut(newDiscardWriter())
+	cmd.SetErr(newDiscardWriter())
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	if err := cmd.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(left) != 2 {
+		t.Fatalf("expected 2 leave calls, got %d: %#v", len(left), left)
+	}
+	if left[0] != "192.168.1.20" || left[1] != "192.168.1.10" {
+		t.Fatalf("expected coordinator last; got: %#v", left)
 	}
 }
 

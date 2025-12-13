@@ -161,8 +161,8 @@ Expected:
 
 Fill this in when doing an end-to-end run.
 
-- Date: `2025-12-13T15:13:21Z`
-- Commit SHA: `e7d9d49`
+- Date: `2025-12-13T15:16:12Z`
+- Commit SHA: `408ce74`
 - Network: `192.168.0.0/24`
 - Discovery result (rooms found): `Bar, Bedroom, Hallway, Kitchen, Living Room, Master Bathroom, Office, Pantry`
 - Notes/issues:

@@ -40,6 +40,13 @@ Notes:
 
 ### 2) Discovery + topology
 
+### 2.5) Discovery (advanced)
+
+- `sonos discover --all` includes invisible/bonded devices (useful for debugging)
+- `sonos discover --format json` prints structured results
+- `sonos discover --format tsv` prints tab-separated output
+
+
 - `sonos discover --timeout 6s`
   - Expected: prints all visible rooms (name, IP, UUID)
 - `sonos group status`
@@ -51,6 +58,14 @@ Regression checks:
 - If SSDP multicast fails, discovery should fall back to subnet scan + topology and still find rooms.
 
 ### 3) Volume + mute
+
+### 3.5) Config defaults
+
+- `sonos config path` prints where config is stored
+- `sonos config set defaultRoom "Office"` then run a command without `--name`/`--ip`:
+  - `sonos volume get` (should target the default room)
+- `sonos config unset defaultRoom` then run `sonos volume get` (should error and ask for `--name/--ip`)
+
 
 Pick a room:
 
@@ -64,6 +79,17 @@ Expected:
 - Values change immediately and `sonos status` reflects the new values.
 
 ### 4) Grouping controls
+
+### 4.5) Group volume/mute
+
+Create a small temporary group (recommended: join `Pantry` to `Office`) and validate group-wide controls:
+
+- `sonos group join --name Pantry --to Office`
+- `sonos group volume get --name Office`
+- `sonos group volume set --name Office 18`
+- `sonos group mute toggle --name Office` (twice to return to original)
+- `sonos group dissolve --name Office` (splits the test group)
+
 
 Pick a coordinator room and a second room:
 
@@ -157,18 +183,31 @@ Expected:
 Expected:
 - Events stream in (may take a few seconds after the change); stop with Ctrl+C.
 
+### 12) Shell completions
+
+- `sonos completion zsh`
+- `sonos completion bash`
+- `sonos completion fish`
+- `sonos completion powershell`
+
+Expected: prints a completion script to stdout.
+
 ## Latest run (example record)
 
 Fill this in when doing an end-to-end run.
 
-- Date: `2025-12-13T15:18:40Z`
-- Commit SHA: `f2d276d`
+- Date: `2025-12-13T15:28:48Z`
+- Commit SHA: `abb0d8d`
 - Network: `192.168.0.0/24`
 - Discovery result (rooms found): `Bar, Bedroom, Hallway, Kitchen, Living Room, Master Bathroom, Office, Pantry`
 - Notes/issues:
   - `sonos smapi search` requires one-time auth on this system (expected): run `sonos smapi auth begin` + `sonos smapi auth complete`.
   - `sonos favorites list` requires a target via `--name`/`--ip`.
+  - `sonos discover --all` shows bonded/hidden devices (multiple IPs per room name), which is expected on this system.
+  - Verified: `sonos config set defaultRoom Office` makes `--name` optional for commands that require a target.
+  - Verified: `sonos group volume`/`sonos group mute` work on a temporary `Office+Pantry` group; `sonos group dissolve` splits it again.
   - Verified: `group solo` on a soundbar room name works even when bonded devices share the same room name.
   - Verified: `sonos tv` works after making the soundbar a standalone coordinator.
   - Verified: `sonos linein` works on a Sonos Five.
   - Verified: `sonos watch` prints follow-up events for volume changes.
+  - Restored original grouping at end via `sonos scene apply __restore_testplan` + delete.

@@ -74,7 +74,7 @@ Key services/actions:
 
 ### Status
 
-- `sonos status --name "<Room>"` – show playback status, current URI, time, volume/mute
+- `sonos status --name "<Room>"` (or `sonos now`) – show playback status, current URI, time, volume/mute, and parsed now-playing metadata when available (`Title/Artist/Album/AlbumArt`).
   - `--json` supported.
 
 ### Transport

@@ -46,6 +46,7 @@ Show status (text or JSON):
 
 ```bash
 ./sonos status --name "Kitchen"
+./sonos now --name "Kitchen"
 ./sonos status --name "Kitchen" --json
 ```
 

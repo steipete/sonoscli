@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on “Keep a Changelog”, and this project aims to follow Semantic Versioning.
 
+## [0.1.4] - 2025-12-13
+
+### Added
+- `sonos status` now parses `TrackMetaData` DIDL (when available) and shows:
+  - `Title`, `Artist`, `Album`, and `AlbumArt` (absolute URL when possible)
+- `sonos now` as an alias for `sonos status`.
+
 ## [0.1.3] - 2025-12-13
 
 ### Added

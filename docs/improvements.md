@@ -28,6 +28,8 @@ Legend:
   - Optionally add `sonos now` as a friendlier alias.
 - Notes:
   - Requires DIDL parsing (we can implement a small subset rather than full DIDL).
+ - Status:
+   - Implemented in `0.1.4` (adds `sonos now` alias and prints parsed metadata when present).
 
 3) **Group volume + group mute**
 - Value: High | Effort: S–M | Deps: none

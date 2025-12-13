@@ -173,6 +173,7 @@ Show current groups:
 
 ```bash
 ./sonos group status
+./sonos group status --all # include invisible/bonded devices (advanced)
 ```
 
 Join `Bedroom` into `Living Room`’s group:

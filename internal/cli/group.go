@@ -54,7 +54,8 @@ func newGroupCmd(flags *rootFlags) *cobra.Command {
 }
 
 func newGroupStatusCmd(flags *rootFlags) *cobra.Command {
-	return &cobra.Command{
+	var all bool
+	cmd := &cobra.Command{
 		Use:          "status",
 		Short:        "Show current groups and members",
 		SilenceUsage: true,
@@ -68,6 +69,18 @@ func newGroupStatusCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 
+			if !all {
+				for i := range top.Groups {
+					var visible []sonos.Member
+					for _, m := range top.Groups[i].Members {
+						if m.IsVisible {
+							visible = append(visible, m)
+						}
+					}
+					top.Groups[i].Members = visible
+				}
+			}
+
 			if isJSON(flags) {
 				return writeJSON(cmd, top)
 			}
@@ -75,7 +88,7 @@ func newGroupStatusCmd(flags *rootFlags) *cobra.Command {
 				for _, g := range top.Groups {
 					coord := g.Coordinator
 					for _, m := range g.Members {
-						if !m.IsVisible {
+						if !all && !m.IsVisible {
 							continue
 						}
 						role := "member"
@@ -93,6 +106,9 @@ func newGroupStatusCmd(flags *rootFlags) *cobra.Command {
 				coord := g.Coordinator
 				_, _ = fmt.Fprintf(w, "Group:\t%s\t(%s)\n", coord.Name, coord.IP)
 				for _, m := range g.Members {
+					if !all && !m.IsVisible {
+						continue
+					}
 					mark := " "
 					if m.IsCoordinator {
 						mark = "*"
@@ -104,6 +120,8 @@ func newGroupStatusCmd(flags *rootFlags) *cobra.Command {
 			return w.Flush()
 		},
 	}
+	cmd.Flags().BoolVar(&all, "all", false, "Include invisible/bonded devices (advanced)")
+	return cmd
 }
 
 func newGroupJoinCmd(flags *rootFlags) *cobra.Command {

@@ -412,3 +412,90 @@ type discardWriter struct{}
 func newDiscardWriter() *discardWriter { return &discardWriter{} }
 
 func (w *discardWriter) Write(p []byte) (int, error) { return len(p), nil }
+
+func TestGroupStatusHidesInvisibleByDefault(t *testing.T) {
+	flags := &rootFlags{Timeout: 2 * time.Second, Format: formatPlain}
+	cmd := newGroupStatusCmd(flags)
+
+	top := sonos.Topology{
+		Groups: []sonos.Group{
+			{
+				ID: "G1",
+				Coordinator: sonos.Member{
+					Name:          "Office",
+					IP:            "192.168.1.10",
+					UUID:          "RINCON_OFF1400",
+					IsCoordinator: true,
+					IsVisible:     true,
+				},
+				Members: []sonos.Member{
+					{Name: "Office", IP: "192.168.1.10", UUID: "RINCON_OFF1400", IsCoordinator: true, IsVisible: true},
+					{Name: "Invisible", IP: "192.168.1.11", UUID: "RINCON_INV1400", IsVisible: false},
+				},
+			},
+		},
+	}
+
+	origTG := newTopologyGetter
+	t.Cleanup(func() { newTopologyGetter = origTG })
+	newTopologyGetter = func(ctx context.Context, timeout time.Duration) (topologyGetter, error) {
+		return &fakeTopologyGetter{top: top}, nil
+	}
+
+	var out captureWriter
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+
+	if err := cmd.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(out.String(), "Invisible") {
+		t.Fatalf("expected invisible member to be hidden, got: %s", out.String())
+	}
+}
+
+func TestGroupStatusAllShowsInvisible(t *testing.T) {
+	flags := &rootFlags{Timeout: 2 * time.Second, Format: formatTSV}
+	cmd := newGroupStatusCmd(flags)
+
+	top := sonos.Topology{
+		Groups: []sonos.Group{
+			{
+				ID: "G1",
+				Coordinator: sonos.Member{
+					Name:          "Office",
+					IP:            "192.168.1.10",
+					UUID:          "RINCON_OFF1400",
+					IsCoordinator: true,
+					IsVisible:     true,
+				},
+				Members: []sonos.Member{
+					{Name: "Office", IP: "192.168.1.10", UUID: "RINCON_OFF1400", IsCoordinator: true, IsVisible: true},
+					{Name: "Invisible", IP: "192.168.1.11", UUID: "RINCON_INV1400", IsVisible: false},
+				},
+			},
+		},
+	}
+
+	origTG := newTopologyGetter
+	t.Cleanup(func() { newTopologyGetter = origTG })
+	newTopologyGetter = func(ctx context.Context, timeout time.Duration) (topologyGetter, error) {
+		return &fakeTopologyGetter{top: top}, nil
+	}
+
+	cmd.SetArgs([]string{"--all"})
+	var out captureWriter
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+
+	if err := cmd.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out.String(), "\tInvisible\t") {
+		t.Fatalf("expected invisible member in TSV output, got: %s", out.String())
+	}
+}

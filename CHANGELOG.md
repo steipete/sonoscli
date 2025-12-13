@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on “Keep a Changelog”, and this project aims to follow Semantic Versioning.
 
+## [0.1.15] - 2025-12-13
+
+### Changed
+- `sonos group status` now hides invisible/bonded devices by default (use `--all` to include them).
+
 ## [0.1.14] - 2025-12-13
 
 ### Added

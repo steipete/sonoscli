@@ -19,8 +19,10 @@ type Device struct {
 
 type deviceDescription struct {
 	Device struct {
-		RoomName string `xml:"roomName"`
-		UDN      string `xml:"UDN"`
+		DeviceType   string `xml:"deviceType"`
+		RoomName     string `xml:"roomName"`
+		Manufacturer string `xml:"manufacturer"`
+		UDN          string `xml:"UDN"`
 	} `xml:"device"`
 }
 
@@ -46,6 +48,13 @@ func fetchDeviceDescription(ctx context.Context, httpClient *http.Client, locati
 	var dd deviceDescription
 	if err := xml.Unmarshal(b, &dd); err != nil {
 		return "", "", "", err
+	}
+
+	// Filter out non-Sonos UPnP devices that might respond to our SSDP search.
+	deviceType := strings.TrimSpace(dd.Device.DeviceType)
+	manufacturer := strings.TrimSpace(dd.Device.Manufacturer)
+	if deviceType != "urn:schemas-upnp-org:device:ZonePlayer:1" && !strings.Contains(strings.ToLower(manufacturer), "sonos") {
+		return "", "", "", fmt.Errorf("not a sonos ZonePlayer (deviceType=%q manufacturer=%q)", deviceType, manufacturer)
 	}
 
 	name = strings.TrimSpace(dd.Device.RoomName)

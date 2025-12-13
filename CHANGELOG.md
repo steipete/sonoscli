@@ -10,6 +10,11 @@ The format is based on “Keep a Changelog”, and this project aims to follow S
 - New auth grouping: `sonos auth smapi begin|complete` (SMAPI DeviceLink/AppLink).
   - Backwards-compatible: `sonos smapi auth ...` still works but is hidden from help output.
 
+## [0.1.26] - 2025-12-13
+
+### Fixed
+- `sonos prev` now restarts the current track (seek to `0:00:00`) when the source rejects `Previous` (UPnP `701`/`711`), instead of failing.
+
 ## [0.1.24] - 2025-12-13
 
 ### Changed

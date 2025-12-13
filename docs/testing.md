@@ -196,8 +196,8 @@ Expected: prints a completion script to stdout.
 
 Fill this in when doing an end-to-end run.
 
-- Date: `2025-12-13T16:32:02Z`
-- Commit SHA: `68b78fa`
+- Date: `2025-12-13T17:02:11Z`
+- Commit SHA: `151f5d8`
 - Network: `192.168.0.0/24`
 - Discovery result (rooms found): `Bar, Bedroom, Hallway, Kitchen, Living Room, Master Bathroom, Office, Pantry`
 - Notes/issues:
@@ -207,6 +207,12 @@ Fill this in when doing an end-to-end run.
   - Verified: `sonos smapi search --service Spotify --category tracks "gareth emery"` works after one-time auth (`sonos auth smapi begin` + `sonos auth smapi complete --wait ...`).
   - Verified: `sonos auth smapi begin|complete` appears in help; legacy `sonos smapi auth ...` still works (hidden).
   - Verified: `sonos watch --name Office --duration 6s` reports `volume_master` changes when `sonos volume set` is called during the watch window.
+  - Verified: `sonos prev` does not fail on Spotify playback; it restarts the current track when Previous is rejected.
+  - Verified: Queue workflow on Office: `queue clear`, `enqueue` 2 tracks, `queue play 2`, `queue remove 1`, `queue clear`.
+  - Verified: `sonos config set defaultRoom Office` makes `--name` optional; `sonos config set format tsv` affects output.
+  - Verified: `sonos favorites list --name Bar` lists favorites (may include mixed sources like Spotify/Sonos Radio/SoundCloud).
+  - Note: `sonos play-uri --radio` may be rewritten by Sonos to a different scheme (e.g. `aac://...`) and the stream title may not reflect the provided `--title`.
+  - Note: Restoring scenes may require a longer `--timeout` on some systems (used `--timeout 20s` after a `5s` timeout contacting `Living Room`).
   - `sonos favorites list` requires a target via `--name`/`--ip`.
   - `sonos discover --all` shows bonded/hidden devices (multiple IPs per room name), which is expected on this system.
   - Verified: `sonos config set defaultRoom Office` makes `--name` optional for commands that require a target.

@@ -7,6 +7,7 @@
   - SSDP M-SEARCH discovery (fast path).
   - Topology discovery via `ZoneGroupTopology.GetZoneGroupState` (reliable path; finds all rooms).
   - Fallback subnet scan (checks port `1400`, verifies `device_description.xml`) for networks where SSDP is blocked/unreliable.
+  - Curl-based HTTP/SOAP retry for private LAN endpoints when Go's HTTP stack times out (workaround for some Sonos/network keep-alive quirks).
   - `--timeout` bounds the overall discovery operation; `--all` includes invisible/bonded devices.
 - Output formats:
   - Global `--format plain|json|tsv` flag (and deprecated `--json` alias for `--format json`).

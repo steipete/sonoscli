@@ -25,8 +25,6 @@ func (e errorRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
 }
 
 func TestFetchDeviceDescription_CurlFallbackOnTimeout(t *testing.T) {
-	t.Parallel()
-
 	orig := curlRoundTripFunc
 	t.Cleanup(func() { curlRoundTripFunc = orig })
 
@@ -74,8 +72,6 @@ func TestFetchDeviceDescription_CurlFallbackOnTimeout(t *testing.T) {
 }
 
 func TestSoapCall_CurlFallbackOnTimeout(t *testing.T) {
-	t.Parallel()
-
 	orig := curlRoundTripFunc
 	t.Cleanup(func() { curlRoundTripFunc = orig })
 
@@ -123,8 +119,6 @@ func TestSoapCall_CurlFallbackOnTimeout(t *testing.T) {
 }
 
 func TestDoRequest_NoFallbackForPublicIP(t *testing.T) {
-	t.Parallel()
-
 	orig := curlRoundTripFunc
 	t.Cleanup(func() { curlRoundTripFunc = orig })
 
@@ -142,8 +136,6 @@ func TestDoRequest_NoFallbackForPublicIP(t *testing.T) {
 }
 
 func TestDoRequest_NoFallbackForNonTimeoutError(t *testing.T) {
-	t.Parallel()
-
 	orig := curlRoundTripFunc
 	t.Cleanup(func() { curlRoundTripFunc = orig })
 

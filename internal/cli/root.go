@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"sort"
 	"strings"
 	"time"
 
@@ -93,6 +94,10 @@ func newRootCmd() (*cobra.Command, *rootFlags, error) {
 	_ = rootCmd.PersistentFlags().MarkDeprecated("json", "use --format json")
 	rootCmd.PersistentFlags().BoolVar(&flags.Debug, "debug", false, "Enable debug logging")
 
+	if err := rootCmd.RegisterFlagCompletionFunc("name", nameFlagCompletion(flags)); err != nil {
+		return nil, nil, err
+	}
+
 	rootCmd.AddCommand(newDiscoverCmd(flags))
 	rootCmd.AddCommand(newConfigCmd(flags))
 	rootCmd.AddCommand(newStatusCmd(flags))
@@ -118,6 +123,51 @@ func newRootCmd() (*cobra.Command, *rootFlags, error) {
 	rootCmd.AddCommand(newWatchCmd(flags))
 
 	return rootCmd, flags, nil
+}
+
+func nameFlagCompletion(flags *rootFlags) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		timeout := completionTimeoutForFlags(flags)
+		ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
+		defer cancel()
+
+		devs, err := sonosDiscover(ctx, sonos.DiscoverOptions{Timeout: timeout})
+		if err != nil || len(devs) == 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		needle := strings.ToLower(strings.TrimSpace(toComplete))
+		seen := map[string]struct{}{}
+		out := make([]string, 0, len(devs))
+		for _, d := range devs {
+			name := strings.TrimSpace(d.Name)
+			if name == "" {
+				continue
+			}
+			if needle != "" && !strings.HasPrefix(strings.ToLower(name), needle) {
+				continue
+			}
+			if _, ok := seen[name]; ok {
+				continue
+			}
+			seen[name] = struct{}{}
+			out = append(out, name)
+		}
+		sort.Strings(out)
+		return out, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+func completionTimeoutForFlags(flags *rootFlags) time.Duration {
+	const maxCompletionTimeout = 1 * time.Second
+
+	if flags == nil || flags.Timeout <= 0 {
+		return maxCompletionTimeout
+	}
+	if flags.Timeout < maxCompletionTimeout {
+		return flags.Timeout
+	}
+	return maxCompletionTimeout
 }
 
 func validateTarget(flags *rootFlags) error {

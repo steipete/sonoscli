@@ -79,6 +79,19 @@ Ungroup a speaker (make it standalone):
 ./sonos group unjoin --name "Bedroom"
 ```
 
+Ungroup Office and play on Office only:
+
+```bash
+./sonos group unjoin --name "Office"
+./sonos open --name "Office" "https://open.spotify.com/album/<id>"
+```
+
+Re-join a speaker back into another group:
+
+```bash
+./sonos group join --name "Office" --to "Bar"
+```
+
 Volume / mute:
 
 ```bash

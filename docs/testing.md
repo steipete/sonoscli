@@ -196,8 +196,8 @@ Expected: prints a completion script to stdout.
 
 Fill this in when doing an end-to-end run.
 
-- Date: `2025-12-13T17:44:46Z`
-- Commit SHA: `2f9b55a`
+- Date: `2025-12-13T17:51:49Z`
+- Commit SHA: `16546a6`
 - Network: `192.168.0.0/24`
 - Discovery result (rooms found): `Bar, Bedroom, Hallway, Kitchen, Living Room, Master Bathroom, Office, Pantry`
 - Notes/issues:
@@ -237,4 +237,5 @@ Fill this in when doing an end-to-end run.
   - Verified: JSON output:
     - `sonos --format json discover` prints a JSON array.
     - `sonos --format json queue list --name Office` prints a JSON object with `items`.
+  - Verified: `sonos discover --timeout 10ms` now returns a clear error (non-zero exit) when no speakers are found; `--format json` still prints `[]`.
   - Restored original state via `sonos --timeout 25s scene apply/delete __restore_continued_testing_2025_12_13_b`.

@@ -36,7 +36,7 @@ func soapCall(ctx context.Context, httpClient *http.Client, endpointURL, service
 
 	start := time.Now()
 	slog.Debug("soap: request", "action", action, "endpoint", endpointURL)
-	resp, err := httpClient.Do(req)
+	resp, err := doRequest(ctx, httpClient, req)
 	if err != nil {
 		slog.Debug("soap: request failed", "action", action, "endpoint", endpointURL, "elapsed", time.Since(start).String(), "err", err.Error())
 		return nil, err

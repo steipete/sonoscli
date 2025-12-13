@@ -33,7 +33,7 @@ func fetchDeviceDescription(ctx context.Context, httpClient *http.Client, locati
 	if err != nil {
 		return "", "", "", err
 	}
-	resp, err := httpClient.Do(req)
+	resp, err := doRequest(ctx, httpClient, req)
 	if err != nil {
 		return "", "", "", err
 	}

@@ -341,11 +341,22 @@ CI runs: `gofmt` check, `go vet`, `go test`, and `golangci-lint`.
 ## Global flags
 
 - `--ip <ip>`: target by IP
-- `--name <name>`: target by speaker name
+- `--name <name>`: target by speaker name (defaults to `sonos config defaultRoom` if set)
 - `--timeout <duration>`: discovery/network timeout (default `5s`)
-- `--format plain|json|tsv`: output format (defaults to `plain`)
+- `--format plain|json|tsv`: output format (defaults to `sonos config format` if set)
 - `--json`: deprecated alias for `--format json`
 - `--debug`: reserved for future logging controls
+
+## Config (defaults)
+
+Persist small local defaults:
+
+```bash
+./sonos config get
+./sonos config set defaultRoom "Office"
+./sonos config set format json
+./sonos config unset defaultRoom
+```
 
 ## Troubleshooting
 

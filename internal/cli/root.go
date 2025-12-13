@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/steipete/sonoscli/internal/appconfig"
 	"github.com/steipete/sonoscli/internal/sonos"
 )
 
@@ -20,7 +21,35 @@ type rootFlags struct {
 }
 
 func Execute() error {
+	rootCmd, _, err := newRootCmd()
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	rootCmd.SetContext(ctx)
+
+	if err := rootCmd.Execute(); err != nil {
+		return err
+	}
+	return nil
+}
+
+var loadAppConfig = func() (appconfig.Config, error) {
+	s, err := appconfig.NewDefaultStore()
+	if err != nil {
+		return appconfig.Config{}, err
+	}
+	return s.Load()
+}
+
+func newRootCmd() (*cobra.Command, *rootFlags, error) {
 	flags := &rootFlags{}
+
+	cfg, err := loadAppConfig()
+	if err != nil {
+		return nil, nil, err
+	}
+	cfg = cfg.Normalize()
 
 	rootCmd := &cobra.Command{
 		Use:          "sonos",
@@ -50,14 +79,15 @@ func Execute() error {
 	}
 
 	rootCmd.PersistentFlags().StringVar(&flags.IP, "ip", "", "Target speaker IP address")
-	rootCmd.PersistentFlags().StringVar(&flags.Name, "name", "", "Target speaker name")
+	rootCmd.PersistentFlags().StringVar(&flags.Name, "name", cfg.DefaultRoom, "Target speaker name")
 	rootCmd.PersistentFlags().DurationVar(&flags.Timeout, "timeout", 5*time.Second, "Timeout for discovery and network calls")
-	rootCmd.PersistentFlags().StringVar(&flags.Format, "format", formatPlain, "Output format: plain|json|tsv")
+	rootCmd.PersistentFlags().StringVar(&flags.Format, "format", cfg.Format, "Output format: plain|json|tsv")
 	rootCmd.PersistentFlags().BoolVar(&flags.JSON, "json", false, "Deprecated: use --format json")
 	_ = rootCmd.PersistentFlags().MarkDeprecated("json", "use --format json")
 	rootCmd.PersistentFlags().BoolVar(&flags.Debug, "debug", false, "Enable debug logging")
 
 	rootCmd.AddCommand(newDiscoverCmd(flags))
+	rootCmd.AddCommand(newConfigCmd(flags))
 	rootCmd.AddCommand(newStatusCmd(flags))
 	rootCmd.AddCommand(newPlayCmd(flags))
 	rootCmd.AddCommand(newPauseCmd(flags))
@@ -79,13 +109,7 @@ func Execute() error {
 	rootCmd.AddCommand(newMuteCmd(flags))
 	rootCmd.AddCommand(newWatchCmd(flags))
 
-	ctx := context.Background()
-	rootCmd.SetContext(ctx)
-
-	if err := rootCmd.Execute(); err != nil {
-		return err
-	}
-	return nil
+	return rootCmd, flags, nil
 }
 
 func validateTarget(flags *rootFlags) error {

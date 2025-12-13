@@ -9,6 +9,13 @@ The format is based on “Keep a Changelog”, and this project aims to follow S
 ### Changed
 - `sonos group status` now hides invisible/bonded devices by default (use `--all` to include them).
 
+## [0.1.16] - 2025-12-13
+
+### Added
+- `sonos config` for local defaults:
+  - `sonos config set defaultRoom "Office"` to make `--name` optional.
+  - `sonos config set format json` to default `--format`.
+
 ## [0.1.14] - 2025-12-13
 
 ### Added

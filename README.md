@@ -1,12 +1,22 @@
-# sonoscli
+# 🔊 sonoscli — Discover, group, and control Sonos
 
 `sonoscli` is a modern Go CLI to control Sonos speakers over your local network (UPnP/SOAP).
 
-It’s designed for:
-- Easy discovery of speakers on your LAN
-- Coordinator-aware control (talks to the group coordinator automatically)
-- Simple, scriptable commands
-- Spotify enqueue/play from `spotify:<type>:<id>` or Spotify share URLs (no Spotify credentials required)
+## Features
+
+- **Reliable discovery**: SSDP + topology (`ZoneGroupTopology.GetZoneGroupState`) with subnet scan fallback.
+- **Coordinator-aware control**: target any room; commands go to the group coordinator automatically.
+- **Playback controls**: play/pause/stop/next/prev, plus `play-uri`, `linein`, and `tv`.
+- **Grouping**: inspect groups, join/unjoin, party mode, dissolve groups, and **solo** a room.
+- **Queue**: list/play/remove/clear queue entries.
+- **Favorites**: list and play Sonos Favorites by index or title.
+- **Scenes**: save/apply presets (grouping + per-room volume/mute).
+- **Spotify**:
+  - Enqueue/play Spotify share links or canonical `spotify:<type>:<id>` URIs (no Spotify credentials required).
+  - Search Spotify via **SMAPI** (Sonos Music API; uses your linked service in Sonos).
+  - Optional Spotify Web API search (client credentials) if you want it.
+- **Live events**: `watch` subscribes to AVTransport + RenderingControl and prints changes.
+- **Scriptable output**: `--format plain|json|tsv` plus `--debug` tracing.
 
 This is not an official Sonos project.
 
@@ -29,6 +39,27 @@ Spotify search via Spotify Web API (optional):
 
 ## Install / build
 
+Install (Homebrew, single line):
+
+```bash
+brew install steipete/tap/sonoscli
+```
+
+This installs the `sonos` binary.
+
+Upgrade later:
+
+```bash
+brew upgrade steipete/tap/sonoscli
+```
+
+Install from source (Go):
+
+```bash
+go install github.com/steipete/sonoscli/cmd/sonos@latest
+sonos --version
+```
+
 Build a local binary:
 
 ```bash
@@ -38,6 +69,8 @@ go build -o sonos ./cmd/sonos
 ```
 
 ## Quick start
+
+Note: if you installed via Homebrew or `go install`, replace `./sonos` with `sonos`.
 
 Discover speakers:
 
@@ -74,6 +107,18 @@ Watch live events (track/volume changes):
 ```
 
 Note: this starts a local callback server for UPnP events; your OS firewall may prompt to allow incoming connections.
+
+## Command overview
+
+Run `sonos --help` for the full list. Most commonly used:
+
+- Discovery & status: `discover`, `status`/`now`, `watch`
+- Playback: `play`, `pause`, `stop`, `next`, `prev`, `open`, `enqueue`, `play-uri`, `linein`, `tv`
+- Grouping: `group status`, `group join`, `group unjoin`, `group solo`, `group party`, `group dissolve`
+- Queue: `queue list`, `queue play`, `queue remove`, `queue clear`
+- Favorites: `favorites list`, `favorites open`
+- Scenes: `scene save`, `scene apply`, `scene list`, `scene delete`
+- Spotify search: `smapi search` (recommended), optional `search spotify` (Spotify Web API)
 
 ## Queue
 
@@ -378,6 +423,8 @@ Persist small local defaults:
   - Ensure Wi‑Fi client isolation is off and you’re on the same LAN/subnet.
 - Discovery is slow or flaky:
   - Run `sonos --debug discover` to see whether SSDP multicast is timing out and whether topology calls are slow.
+- Discovery / SOAP calls hang or time out on your network:
+  - `sonoscli` retries local Sonos HTTP/SOAP calls via `curl` as a workaround for some network/firmware quirks.
 - Commands fail with UPnP/SOAP errors:
   - Verify you can reach `http://<speaker-ip>:1400/` from this machine.
   - Try targeting by `--name` (it resolves the coordinator).
@@ -395,8 +442,8 @@ https://github.com/SoCo/SoCo
 
 ## Design doc
 
-See `docs/spec.md`.
+See [`docs/spec.md`](docs/spec.md).
 
 ## License
 
-See `LICENSE`.
+MIT License. See [`LICENSE`](LICENSE).

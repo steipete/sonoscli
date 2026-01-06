@@ -120,6 +120,7 @@ func newRootCmd() (*cobra.Command, *rootFlags, error) {
 	rootCmd.AddCommand(newQueueCmd(flags))
 	rootCmd.AddCommand(newVolumeCmd(flags))
 	rootCmd.AddCommand(newMuteCmd(flags))
+	rootCmd.AddCommand(newModeCmd(flags))
 	rootCmd.AddCommand(newWatchCmd(flags))
 
 	return rootCmd, flags, nil

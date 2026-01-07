@@ -11,7 +11,7 @@ import (
 
 func newModeCmd(flags *rootFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "mode <get|shuffle|repeat|normal>",
+		Use:   "mode <get|shuffle|shuffle-norepeat|repeat|repeat-one|normal>",
 		Short: "Get or set play mode (shuffle/repeat)",
 		Long: `Controls playback mode (shuffle/repeat) on the group coordinator.
 

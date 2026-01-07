@@ -3,6 +3,7 @@ package sonos
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 )
 
@@ -235,9 +236,16 @@ func (c *Client) GetTransportSettings(ctx context.Context) (TransportSettings, e
 // SetPlayMode sets the playback mode (shuffle/repeat).
 // Valid modes: NORMAL, SHUFFLE, SHUFFLE_NOREPEAT, REPEAT_ALL, REPEAT_ONE
 func (c *Client) SetPlayMode(ctx context.Context, mode PlayMode) error {
+	// Validate mode before sending to device
+	switch mode {
+	case PlayModeNormal, PlayModeShuffle, PlayModeShuffleNoRepeat, PlayModeRepeatAll, PlayModeRepeatOne:
+		// valid
+	default:
+		return fmt.Errorf("invalid play mode: %q", mode)
+	}
 	_, err := c.soapCall(ctx, controlAVTransport, urnAVTransport, "SetPlayMode", map[string]string{
-		"InstanceID":   "0",
-		"NewPlayMode":  string(mode),
+		"InstanceID":  "0",
+		"NewPlayMode": string(mode),
 	})
 	return err
 }

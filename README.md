@@ -15,6 +15,10 @@
   - Enqueue/play Spotify share links or canonical `spotify:<type>:<id>` URIs (no Spotify credentials required).
   - Search Spotify via **SMAPI** (Sonos Music API; uses your linked service in Sonos).
   - Optional Spotify Web API search (client credentials) if you want it.
+- **Apple Music**:
+  - Search and play Apple Music content (songs, albums, playlists, artists).
+  - Uses browser-extracted tokens (~6 month lifespan).
+  - Enqueue via Sonos SMAPI for seamless playback.
 - **Live events**: `watch` subscribes to AVTransport + RenderingControl and prints changes.
 - **Scriptable output**: `--format plain|json|tsv` plus `--debug` tracing.
 
@@ -36,6 +40,11 @@ Spotify search (recommended, no Spotify Web API credentials):
 Spotify search via Spotify Web API (optional):
 - If you want `sonos search spotify`, you’ll need a Spotify Web API app (client credentials).
   Set `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` (or pass `--client-id/--client-secret`).
+
+Apple Music:
+- Apple Music must already be linked in the Sonos app.
+- Requires authentication tokens extracted from the Apple Music web player.
+- Tokens last ~6 months and are stored in `~/.config/sonoscli/applemusic_token.json`.
 
 ## Install / build
 
@@ -356,6 +365,48 @@ Enqueue only:
 Notes:
 - The enqueue implementation tries Spotify Sonos service numbers `2311` and `3079` for compatibility.
 - Use `--title` to override the queue display title for some entries.
+
+## Apple Music
+
+Authenticate with Apple Music (one-time setup):
+
+```bash
+./sonos auth applemusic login
+# Follow instructions to extract tokens from the Apple Music web player
+# Tokens are stored in ~/.config/sonoscli/applemusic_token.json
+
+./sonos auth applemusic status   # Check authentication status
+./sonos auth applemusic logout   # Remove stored tokens
+```
+
+Search Apple Music:
+
+```bash
+./sonos search applemusic "taylor swift"
+./sonos search applemusic "chill vibes" --category playlists
+./sonos search applemusic "miles davis" --category albums
+./sonos search applemusic --format json "jazz"
+```
+
+Play from a search query:
+
+```bash
+./sonos play applemusic "taylor swift" --name "Kitchen"
+./sonos play applemusic --category albums "abbey road" --name "Living Room"
+./sonos play applemusic --category playlists "workout" --name "Office"
+```
+
+Play from Apple Music URLs:
+
+```bash
+./sonos open --name "Kitchen" "https://music.apple.com/us/album/album-name/1234567890"
+./sonos open --name "Kitchen" "https://music.apple.com/us/playlist/playlist-name/pl.u-xyz"
+```
+
+Notes:
+- Tokens typically last ~6 months before needing to re-authenticate.
+- Apple Music must be linked in the Sonos app before using this CLI.
+- See `docs/applemusic.md` for detailed documentation.
 
 ## Dev workflow
 

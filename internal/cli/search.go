@@ -34,9 +34,10 @@ var newSonosEnqueuer = func(ctx context.Context, flags *rootFlags) (sonosEnqueue
 func newSearchCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "search",
-		Short: "Search for Spotify items",
+		Short: "Search for music (Spotify, Apple Music)",
 	}
 	cmd.AddCommand(newSearchSpotifyCmd(flags))
+	cmd.AddCommand(newSearchAppleMusicCmd(flags))
 	return cmd
 }
 

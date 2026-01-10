@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strings"
@@ -97,19 +98,26 @@ func (c *SMAPIClient) BeginAuthentication(ctx context.Context) (SMAPIBeginAuthRe
 		}, nil
 	case MusicServiceAuthAppLink:
 		// AppLink returns authorizeAccount/deviceLink inside getAppLinkResult.
+		// Apple Music and other AppLink services require additional parameters.
 		var out struct {
 			Result struct {
 				AuthorizeAccount struct {
+					AppURL     string `xml:"appUrl"`
 					DeviceLink struct {
 						RegURL       string `xml:"regUrl"`
 						LinkCode     string `xml:"linkCode"`
 						LinkDeviceID string `xml:"linkDeviceId"`
+						ShowLinkCode bool   `xml:"showLinkCode"`
 					} `xml:"deviceLink"`
 				} `xml:"authorizeAccount"`
 			} `xml:"getAppLinkResult"`
 		}
 		if err := c.smapiCallInto(ctx, "getAppLink", map[string]string{
-			"householdId": c.HouseholdID,
+			"householdId":  c.HouseholdID,
+			"hardware":     "CLI",
+			"osVersion":    "1.0",
+			"sonosAppName": "sonoscli",
+			"callbackPath": "", // CLI doesn't use callback URLs
 		}, &out, smapiCallOptions{AllowUnauthed: true}); err != nil {
 			return SMAPIBeginAuthResult{}, err
 		}
@@ -462,6 +470,7 @@ func (c *SMAPIClient) smapiCall(ctx context.Context, method string, args map[str
 	}
 
 	if resp.StatusCode == 200 {
+		slog.Debug("smapi: response", "method", method, "status", resp.StatusCode, "body", string(raw))
 		return extractSOAPBodyFirstChild(raw)
 	}
 	if resp.StatusCode == 500 {

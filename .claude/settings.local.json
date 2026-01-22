@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(bd setup:*)",
+      "WebFetch(domain:developer.sonos.com)",
+      "WebFetch(domain:docs.sonos.com)",
+      "Bash(bd create:*)",
+      "Bash(bd dep add:*)",
+      "Bash(bd update:*)"
+    ]
+  }
+}

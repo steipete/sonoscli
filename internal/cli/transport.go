@@ -23,6 +23,7 @@ func newPlayCmd(flags *rootFlags) *cobra.Command {
 	}
 
 	cmd.AddCommand(newPlaySpotifyCmd(flags))
+	cmd.AddCommand(newPlayAppleMusicCmd(flags))
 	return cmd
 }
 

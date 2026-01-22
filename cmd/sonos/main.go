@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/steipete/sonoscli/internal/cli"
+	"github.com/STop211650/sonoscli/internal/cli"
 )
 
 func main() {

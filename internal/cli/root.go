@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/steipete/sonoscli/internal/appconfig"
-	"github.com/steipete/sonoscli/internal/sonos"
+	"github.com/STop211650/sonoscli/internal/appconfig"
+	"github.com/STop211650/sonoscli/internal/sonos"
 )
 
 type rootFlags struct {
@@ -120,6 +120,7 @@ func newRootCmd() (*cobra.Command, *rootFlags, error) {
 	rootCmd.AddCommand(newQueueCmd(flags))
 	rootCmd.AddCommand(newVolumeCmd(flags))
 	rootCmd.AddCommand(newMuteCmd(flags))
+	rootCmd.AddCommand(newModeCmd(flags))
 	rootCmd.AddCommand(newWatchCmd(flags))
 
 	return rootCmd, flags, nil

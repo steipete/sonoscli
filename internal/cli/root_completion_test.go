@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/steipete/sonoscli/internal/sonos"
+	"github.com/STop211650/sonoscli/internal/sonos"
 )
 
 func TestNameFlagCompletion_ReturnsSortedUniqueAndFiltersByPrefix(t *testing.T) {

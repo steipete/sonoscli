@@ -10,6 +10,7 @@ func newAuthCmd(flags *rootFlags) *cobra.Command {
 	}
 
 	cmd.AddCommand(newAuthSMAPICmd(flags))
+	cmd.AddCommand(newAuthAppleMusicCmd(flags))
 	return cmd
 }
 

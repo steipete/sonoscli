@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/steipete/sonoscli/internal/sonos"
+	"github.com/STop211650/sonoscli/internal/sonos"
 )
 
 func TestWatchCmd_TSVAndMethodNotAllowed(t *testing.T) {

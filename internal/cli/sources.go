@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/steipete/sonoscli/internal/sonos"
+	"github.com/STop211650/sonoscli/internal/sonos"
 )
 
 type sourceClient interface {

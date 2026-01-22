@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/steipete/sonoscli/internal/sonos"
+	"github.com/STop211650/sonoscli/internal/sonos"
 )
 
 func TestOpenCmd_Plays(t *testing.T) {

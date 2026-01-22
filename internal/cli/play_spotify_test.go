@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/steipete/sonoscli/internal/sonos"
+	"github.com/STop211650/sonoscli/internal/sonos"
 )
 
 func TestRealSpotifyEnqueuer_EnqueueSpotify(t *testing.T) {

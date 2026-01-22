@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/steipete/sonoscli/internal/appconfig"
+	"github.com/STop211650/sonoscli/internal/appconfig"
 )
 
 func TestRootCmdAppliesConfigDefaultsToFlags(t *testing.T) {

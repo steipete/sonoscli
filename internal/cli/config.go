@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/steipete/sonoscli/internal/appconfig"
+	"github.com/STop211650/sonoscli/internal/appconfig"
 )
 
 var newConfigStore = func() (appconfig.Store, error) { return appconfig.NewDefaultStore() }

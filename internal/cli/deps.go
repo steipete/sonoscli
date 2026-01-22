@@ -1,6 +1,6 @@
 package cli
 
-import "github.com/steipete/sonoscli/internal/sonos"
+import "github.com/STop211650/sonoscli/internal/sonos"
 
 // Dependency injection points for tests.
 var newSMAPITokenStore = func() (sonos.SMAPITokenStore, error) {

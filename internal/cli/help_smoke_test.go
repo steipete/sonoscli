@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
-	"github.com/steipete/sonoscli/internal/appconfig"
+	"github.com/STop211650/sonoscli/internal/appconfig"
 )
 
 func TestHelpWorksForAllCommands(t *testing.T) {

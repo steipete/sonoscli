@@ -1,4 +1,4 @@
-module github.com/steipete/sonoscli
+module github.com/STop211650/sonoscli
 
 go 1.22
 

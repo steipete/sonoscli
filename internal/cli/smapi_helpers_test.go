@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/steipete/sonoscli/internal/sonos"
+	"github.com/STop211650/sonoscli/internal/sonos"
 )
 
 func TestAnySpeakerClient_BasicPaths(t *testing.T) {

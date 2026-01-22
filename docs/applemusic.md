@@ -235,3 +235,14 @@ sonos queue list --name "<room>"                # Verify item in queue
 sonos auth applemusic logout
 sonos auth applemusic status                    # Verify logged out
 ```
+
+## References
+
+Resources for Apple Music token extraction and API usage:
+
+- [Music Assistant - Apple Music Setup](https://www.music-assistant.io/music-providers/apple-music/) - Cookie-based token extraction method
+- [Use Apple Music API Free (GitHub Gist)](https://gist.github.com/sayeed205/813a3ae2c163e0a661b7b28038b444ba) - Unofficial token extraction guide
+- [Apple Developer - Generating Developer Tokens](https://developer.apple.com/documentation/applemusicapi/generating-developer-tokens) - Official documentation
+- [Music Assistant Discussion #3897](https://github.com/orgs/music-assistant/discussions/3897) - MusicKit web authorization discussion
+- [Apple Developer Forums - Music User Token](https://developer.apple.com/forums/thread/748540) - Official forum thread on obtaining user tokens
+- [MusicKit - Apple Developer](https://developer.apple.com/musickit/) - Official MusicKit documentation

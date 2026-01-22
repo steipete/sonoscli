@@ -145,12 +145,12 @@ type PlaylistDescription struct {
 
 // PlaylistAttributes contains playlist metadata.
 type PlaylistAttributes struct {
-	Name        string               `json:"name"`
-	CuratorName string               `json:"curatorName"`
-	Description *PlaylistDescription `json:"description,omitempty"`
-	TrackCount  int                  `json:"trackCount,omitempty"`
-	URL         string               `json:"url"`
-	Artwork     *Artwork             `json:"artwork,omitempty"`
+	Name           string               `json:"name"`
+	CuratorName    string               `json:"curatorName"`
+	Description    *PlaylistDescription `json:"description,omitempty"`
+	TrackCount     int                  `json:"trackCount,omitempty"`
+	URL            string               `json:"url"`
+	Artwork        *Artwork             `json:"artwork,omitempty"`
 }
 
 // Artwork represents artwork for an Apple Music resource.

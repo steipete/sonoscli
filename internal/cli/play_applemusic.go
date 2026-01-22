@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/steipete/sonoscli/internal/applemusic"
-	"github.com/steipete/sonoscli/internal/sonos"
+	"github.com/STop211650/sonoscli/internal/applemusic"
+	"github.com/STop211650/sonoscli/internal/sonos"
 )
 
 // appleMusicEnqueuer interface for dependency injection in tests.

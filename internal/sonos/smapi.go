@@ -102,7 +102,7 @@ func (c *SMAPIClient) BeginAuthentication(ctx context.Context) (SMAPIBeginAuthRe
 		var out struct {
 			Result struct {
 				AuthorizeAccount struct {
-					AppURL     string `xml:"appUrl"`
+					AppURL   string `xml:"appUrl"`
 					DeviceLink struct {
 						RegURL       string `xml:"regUrl"`
 						LinkCode     string `xml:"linkCode"`

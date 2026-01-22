@@ -7,7 +7,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"github.com/steipete/sonoscli/internal/applemusic"
+	"github.com/STop211650/sonoscli/internal/applemusic"
 )
 
 func newSearchAppleMusicCmd(flags *rootFlags) *cobra.Command {

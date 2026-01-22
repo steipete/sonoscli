@@ -1,0 +1,379 @@
+
+╭─── Claude Code v2.0.75 ──────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting        │
+│                 Welcome back Shyam!                │ started                 │
+│                                                    │ Run /init to create a … │
+│                     * ▐▛███▜▌ *                    │ ─────────────────────── │
+│                    * ▝▜█████▛▘ *                   │ Recent activity         │
+│                     *  ▘▘ ▝▝  *                    │ No recent activity      │
+│                                                    │                         │
+│ Opus 4.5 · Claude Max · shyam.toprani@gmail.com's  │                         │
+│ Organization                                       │                         │
+│         ~/Documents/Programming2025_Local          │                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+> /clear 
+  ⎿  (no content)
+
+> I just downloaded sonoscli at 
+/Users/shyamtoprani2024/Documents/Programming2025_Local/sonoscli. Can you 
+analyze how it works and explain to me with diagrams? And how can I add 
+Apple Music support to it? 
+
+⏺ I'll explore the sonoscli codebase to understand how it works.
+
+⏺ Explore(Explore sonoscli codebase structure)
+  ⎿  Done (43 tool uses · 74.3k tokens · 4m 36s)                           
+
+⏺ I now have a complete understanding of the sonoscli architecture. Let me explain it with diagrams.
+
+  Sonoscli Architecture Overview
+
+  sonoscli is a Go CLI tool that controls Sonos speakers over your local network using UPnP/SOAP protocols.
+
+  High-Level Architecture
+
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │                         User CLI Command                             │
+  │                    sonos play --name "Kitchen"                       │
+  └─────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │                      internal/cli/root.go                            │
+  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌────────────┐  │
+  │  │   Cobra     │  │   Target    │  │   Output    │  │   Config   │  │
+  │  │  Commands   │  │  Resolver   │  │  Formatter  │  │   Loader   │  │
+  │  └─────────────┘  └─────────────┘  └─────────────┘  └────────────┘  │
+  └─────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │                     internal/sonos/                                  │
+  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌────────────┐  │
+  │  │  Discovery  │  │   Client    │  │    SOAP     │  │   Music    │  │
+  │  │   (SSDP)    │  │  (HTTP)     │  │  Protocol   │  │  Services  │  │
+  │  └─────────────┘  └─────────────┘  └─────────────┘  └────────────┘  │
+  └─────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │                      Sonos Speaker (Port 1400)                       │
+  │  ┌─────────────────────────────────────────────────────────────┐    │
+  │  │                   UPnP SOAP Services                         │    │
+  │  │  AVTransport │ RenderingControl │ ContentDirectory │ ...    │    │
+  │  └─────────────────────────────────────────────────────────────┘    │
+  └─────────────────────────────────────────────────────────────────────┘
+
+  Command Flow
+
+  ┌──────────────────────────────────────────────────────────────────┐
+  │  1. User Command                                                  │
+  │     $ sonos play spotify:track:abc123 --name "Living Room"       │
+  └──────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+  ┌──────────────────────────────────────────────────────────────────┐
+  │  2. Speaker Discovery (internal/sonos/discover.go)               │
+  │     ├── SSDP Multicast → Find any speaker                        │
+  │     └── Query Topology → Get all rooms & group coordinators      │
+  └──────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+  ┌──────────────────────────────────────────────────────────────────┐
+  │  3. Resolve Coordinator                                          │
+  │     └── "Living Room" → Find group coordinator IP                │
+  │         (Transport commands must go to coordinator)              │
+  └──────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+  ┌──────────────────────────────────────────────────────────────────┐
+  │  4. Build SOAP Request (internal/sonos/soap.go)                  │
+  │     ├── Create DIDL-Lite metadata for track                      │
+  │     └── Build XML SOAP envelope                                  │
+  └──────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+  ┌──────────────────────────────────────────────────────────────────┐
+  │  5. Send to Speaker                                              │
+  │     POST http://<coordinator-ip>:1400/MediaRenderer/AVTransport  │
+  │     └── Action: AddURIToQueue, SetAVTransportURI, Play           │
+  └──────────────────────────────────────────────────────────────────┘
+
+  Speaker Grouping Model
+
+                      ┌─────────────────┐
+                      │   Sonos Cloud   │ (Not used - all local!)
+                      └─────────────────┘
+
+          ┌─────────────────── Group 1 ───────────────────┐
+          │                                                │
+  ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
+  │   Kitchen     │     │  Living Room  │     │   Bedroom     │
+  │  (Follower)   │◄────│ (COORDINATOR) │────►│  (Follower)   │
+  │               │     │               │     │               │
+  └───────────────┘     └───────────────┘     └───────────────┘
+          │                     │                     │
+          │         Transport commands                │
+          │         MUST go to coordinator            │
+          │                     │                     │
+          ▼                     ▼                     ▼
+    Volume/Mute           Play/Pause/Next       Volume/Mute
+    (local only)          (affects group)       (local only)
+
+  Music Service Integration
+
+  ┌────────────────────────────────────────────────────────────────────┐
+  │                     Music Service Layers                            │
+  ├────────────────────────────────────────────────────────────────────┤
+  │                                                                     │
+  │  Layer 1: Direct URI Enqueue (No Auth Needed)                      │
+  │  ┌─────────────────────────────────────────────────────────────┐   │
+  │  │  User provides: spotify:track:abc123                         │   │
+  │  │       ↓                                                      │   │
+  │  │  Build DIDL-Lite metadata with service descriptor            │   │
+  │  │       ↓                                                      │   │
+  │  │  Call AVTransport.AddURIToQueue()                           │   │
+  │  │       ↓                                                      │   │
+  │  │  Speaker handles auth via linked Spotify account            │   │
+  │  └─────────────────────────────────────────────────────────────┘   │
+  │                                                                     │
+  │  Layer 2: SMAPI Search (Uses Speaker's Service Links)              │
+  │  ┌─────────────────────────────────────────────────────────────┐   │
+  │  │  ListAvailableServices() → Get linked services (Spotify,    │   │
+  │  │                            TuneIn, Apple Music, etc.)       │   │
+  │  │       ↓                                                      │   │
+  │  │  Auth via DeviceLink/AppLink if required                    │   │
+  │  │       ↓                                                      │   │
+  │  │  Search(category, query) → Get playable URIs                │   │
+  │  │       ↓                                                      │   │
+  │  │  Enqueue results to speaker                                 │   │
+  │  └─────────────────────────────────────────────────────────────┘   │
+  │                                                                     │
+  │  Layer 3: External API Search (Spotify Web API)                    │
+  │  ┌─────────────────────────────────────────────────────────────┐   │
+  │  │  SPOTIFY_CLIENT_ID + SPOTIFY_CLIENT_SECRET env vars         │   │
+  │  │       ↓                                                      │   │
+  │  │  Spotify Web API search → Get track/album/playlist URIs     │   │
+  │  │       ↓                                                      │   │
+  │  │  Convert to spotify:track:xxx format → Enqueue              │   │
+  │  └─────────────────────────────────────────────────────────────┘   │
+  └────────────────────────────────────────────────────────────────────┘
+
+  Key UPnP Services Used
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  Sonos Speaker (HTTP Port 1400)                                  │
+  ├─────────────────────────────────────────────────────────────────┤
+  │                                                                  │
+  │  /MediaRenderer/AVTransport/Control                              │
+  │  ├── Play, Pause, Stop, Next, Previous                          │
+  │  ├── SetAVTransportURI (play single item)                       │
+  │  └── AddURIToQueue, RemoveFromQueue                             │
+  │                                                                  │
+  │  /MediaRenderer/RenderingControl/Control                         │
+  │  ├── GetVolume, SetVolume                                        │
+  │  └── GetMute, SetMute                                           │
+  │                                                                  │
+  │  /ZoneGroupTopology/Control                                      │
+  │  └── GetZoneGroupState (rooms, groups, coordinators)            │
+  │                                                                  │
+  │  /MediaServer/ContentDirectory/Control                           │
+  │  └── Browse (queue, favorites, service content)                 │
+  │                                                                  │
+  │  /MusicServices/Control                                          │
+  │  └── ListAvailableServices (linked streaming services)          │
+  │                                                                  │
+  └─────────────────────────────────────────────────────────────────┘
+
+  ---
+  Adding Apple Music Support
+
+  Here's how Apple Music support can be added:
+
+  Architecture for Apple Music Integration
+
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │                    Apple Music Integration Path                      │
+  └─────────────────────────────────────────────────────────────────────┘
+
+  Option A: Via SMAPI (Recommended - Simpler)
+  ──────────────────────────────────────────
+  ┌────────────────┐     ┌────────────────┐     ┌────────────────┐
+  │ User Command   │────►│ Check Linked   │────►│ Search via     │
+  │ sonos play am  │     │ Services       │     │ SMAPI          │
+  │ "taylor swift" │     │ (Apple Music?) │     │                │
+  └────────────────┘     └────────────────┘     └────────────────┘
+                                                        │
+                         ┌──────────────────────────────┘
+                         ▼
+                ┌────────────────┐     ┌────────────────┐
+                │ Get Playable   │────►│ Enqueue to     │
+                │ URI + Metadata │     │ Speaker        │
+                └────────────────┘     └────────────────┘
+
+
+  Option B: Direct URI (Like Spotify)
+  ───────────────────────────────────
+  ┌────────────────┐     ┌────────────────┐     ┌────────────────┐
+  │ Parse Apple    │────►│ Build DIDL     │────►│ AddURIToQueue  │
+  │ Music Link     │     │ Metadata       │     │                │
+  │ music.apple.   │     │ (need service  │     │                │
+  │ com/...        │     │  number!)      │     │                │
+  └────────────────┘     └────────────────┘     └────────────────┘
+
+  Implementation Plan
+
+  Files to create/modify:
+
+  sonoscli/
+  ├── internal/
+  │   ├── cli/
+  │   │   ├── root.go              # Add: register Apple Music commands
+  │   │   ├── play_applemusic.go   # NEW: CLI command handler
+  │   │   └── search_applemusic.go # NEW: Search command (optional)
+  │   └── sonos/
+  │       └── applemusic.go        # NEW: URI parsing, DIDL generation
+
+  Step-by-Step Implementation
+
+  Step 1: Discover Apple Music Service ID
+
+  First, check if Apple Music is linked to the Sonos system:
+
+  // internal/sonos/applemusic.go
+  func FindAppleMusicService(services []MusicServiceDescriptor) *MusicServiceDescriptor {
+      for _, svc := range services {
+          if strings.Contains(strings.ToLower(svc.Name), "apple music") {
+              return &svc
+          }
+      }
+      return nil
+  }
+
+  Step 2: Parse Apple Music URLs
+
+  // Example Apple Music URLs:
+  // https://music.apple.com/us/album/album-name/1234567890
+  // https://music.apple.com/us/playlist/playlist-name/pl.xyz
+
+  type AppleMusicRef struct {
+      Type string // "track", "album", "playlist"
+      ID   string // Apple Music ID
+  }
+
+  func ParseAppleMusicURL(input string) (*AppleMusicRef, error) {
+      // Parse music.apple.com URLs and extract type + ID
+  }
+
+  Step 3: Build DIDL-Lite Metadata
+
+  Similar to Spotify's approach in internal/sonos/spotify.go:
+
+  func buildAppleMusicDIDL(ref AppleMusicRef, title string, serviceNum string) string {
+      // Build DIDL-Lite XML with Apple Music service descriptor
+      // SA_RINCON<serviceNum>_X_#Svc<serviceNum>-0-Token
+  }
+
+  Step 4: Add CLI Command
+
+  // internal/cli/play_applemusic.go
+  func newPlayAppleMusicCmd(rootFlags *rootFlags) *cobra.Command {
+      return &cobra.Command{
+          Use:   "applemusic [query]",
+          Short: "Play Apple Music content",
+          RunE: func(cmd *cobra.Command, args []string) error {
+              // 1. Discover Apple Music service
+              // 2. Search or parse URL
+              // 3. Enqueue to speaker
+          },
+      }
+  }
+
+  Key Discovery Step
+
+  Before implementing, you need to discover what Apple Music looks like on your Sonos. Run:
+
+  # List all linked music services
+  sonos smapi services
+
+  # This will show something like:
+  # ID: 52   Name: Apple Music   Auth: DeviceLink
+
+  The service ID (e.g., 52) is critical - it's used in the DIDL metadata descriptor.
+
+  Recommended Approach
+
+  The easiest path is to use SMAPI since it's already implemented:
+
+  # This may already work if Apple Music is linked!
+  sonos smapi search --service "Apple Music" tracks "taylor swift"
+
+  If SMAPI search works, you just need to:
+  1. Add a convenience command (sonos play applemusic "query")
+  2. Auto-detect Apple Music service from ListAvailableServices()
+  3. Pipe SMAPI search results to the existing enqueue logic
+
+  Would you like me to:
+  1. Check what services are currently linked on a Sonos system to see the Apple Music service ID?
+  2. Start implementing the Apple Music integration code?
+  3. Dive deeper into any specific part of the architecture?
+
+> How do I run  sonos smapi services 
+
+⏺ Let me check how to build and run sonoscli:
+
+⏺ Read(sonoscli/README.md)
+  ⎿  Read 450 lines
+
+⏺ Read(sonoscli/Makefile)
+  ⎿  Read 21 lines
+
+⏺ Here's how to build and run sonoscli:
+
+  Build & Run
+
+  # Navigate to the project
+  cd /Users/shyamtoprani2024/Documents/Programming2025_Local/sonoscli
+
+  # Build the binary
+  go build -o sonos ./cmd/sonos
+
+  # Verify it works
+  ./sonos --version
+
+  # List linked music services
+  ./sonos smapi services
+
+  Or use the Makefile:
+
+  cd /Users/shyamtoprani2024/Documents/Programming2025_Local/sonoscli
+  make build
+  ./bin/sonos smapi services
+
+  Prerequisites
+
+  1. Go must be installed - If not, install via:
+  brew install go
+  2. Same network as Sonos - Your Mac must be on the same WiFi/LAN as your Sonos speakers
+  3. Sonos speakers reachable - Port 1400 must be accessible
+
+  Quick Test
+
+  After building, try these commands to verify it's working:
+
+  # Discover your speakers first
+  ./sonos discover
+
+  # List all linked music services (this will show Apple Music if linked)
+  ./sonos smapi services
+
+  # See service details in JSON
+  ./sonos smapi services --format json
+
+  The smapi services output will show you all linked services including their service IDs - this is what we need to understand how Apple Music is configured on your Sonos system.
+
+  Would you like me to help you build it now?
+
+
+

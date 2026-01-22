@@ -14,11 +14,11 @@ import (
 // Two tokens are needed: DeveloperToken (JWT for Bearer auth) and
 // MusicUserToken (user session token). Both are obtained from MusicKit web.
 type Token struct {
-	DeveloperToken string    `json:"developerToken"`         // JWT for Authorization: Bearer header
-	MusicUserToken string    `json:"musicUserToken"`         // For Music-User-Token header
-	StorefrontID   string    `json:"storefrontId,omitempty"` // e.g., "us", "gb"
+	DeveloperToken string    `json:"developerToken"`          // JWT for Authorization: Bearer header
+	MusicUserToken string    `json:"musicUserToken"`          // For Music-User-Token header
+	StorefrontID   string    `json:"storefrontId,omitempty"`  // e.g., "us", "gb"
 	CreatedAt      time.Time `json:"createdAt"`
-	ExpiresAt      time.Time `json:"expiresAt,omitempty"` // estimated, not guaranteed
+	ExpiresAt      time.Time `json:"expiresAt,omitempty"`     // estimated, not guaranteed
 }
 
 // IsExpired checks if the token has likely expired.

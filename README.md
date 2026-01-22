@@ -65,7 +65,7 @@ brew upgrade steipete/tap/sonoscli
 Install from source (Go):
 
 ```bash
-go install github.com/steipete/sonoscli/cmd/sonos@latest
+go install github.com/STop211650/sonoscli/cmd/sonos@latest
 sonos --version
 ```
 

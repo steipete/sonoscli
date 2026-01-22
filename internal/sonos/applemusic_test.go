@@ -117,9 +117,9 @@ func TestParseAppleMusicRef(t *testing.T) {
 
 func TestAppleMusicSonosMagic(t *testing.T) {
 	tests := []struct {
-		kind         AppleMusicKind
-		wantClass    string
-		wantIDPrefix string
+		kind           AppleMusicKind
+		wantClass      string
+		wantIDPrefix   string
 	}{
 		{AppleMusicAlbum, "object.container.album.musicAlbum", "0004206c"},
 		{AppleMusicPlaylist, "object.container.playlistContainer", "1006206c"},

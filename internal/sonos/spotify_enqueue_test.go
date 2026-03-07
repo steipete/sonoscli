@@ -12,6 +12,8 @@ import (
 func TestClientEnqueueSpotify_PlayNowTrack(t *testing.T) {
 	t.Parallel()
 
+	var addCalls int
+
 	deviceDescriptionXML := `<?xml version="1.0"?>
 <root xmlns="urn:schemas-upnp-org:device-1-0">
   <device>
@@ -49,7 +51,8 @@ func TestClientEnqueueSpotify_PlayNowTrack(t *testing.T) {
 
 			switch {
 			case strings.Contains(action, "#AddURIToQueue"):
-				if !strings.Contains(body, "<EnqueuedURI>x-sonos-spotify:spotify%3atrack%3aabc123</EnqueuedURI>") {
+				addCalls++
+				if !strings.Contains(body, "<EnqueuedURI>x-sonos-spotify:spotify%3atrack%3aabc123?sid=2311&amp;sn=0</EnqueuedURI>") {
 					t.Fatalf("unexpected EnqueuedURI body: %s", body)
 				}
 				if !strings.Contains(body, "SA_RINCON2311_X_#Svc2311-0-Token") {
@@ -99,6 +102,9 @@ func TestClientEnqueueSpotify_PlayNowTrack(t *testing.T) {
 	if first != 7 {
 		t.Fatalf("FirstTrackNumberEnqueued: %d", first)
 	}
+	if addCalls != 1 {
+		t.Fatalf("expected exactly 1 AddURIToQueue call, got %d", addCalls)
+	}
 }
 
 func TestClientEnqueueSpotify_InvalidInput(t *testing.T) {
@@ -108,5 +114,84 @@ func TestClientEnqueueSpotify_InvalidInput(t *testing.T) {
 	_, err := c.EnqueueSpotify(context.Background(), "not spotify", EnqueueOptions{})
 	if err == nil {
 		t.Fatalf("expected error")
+	}
+}
+
+func TestClientEnqueueSpotify_TrackFallbacksToLegacyURI(t *testing.T) {
+	t.Parallel()
+
+	var attemptedURIs []string
+
+	soapResp := func(action string, inner string) string {
+		return `<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <u:` + action + `Response xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">` + inner + `</u:` + action + `Response>
+  </s:Body>
+</s:Envelope>`
+	}
+
+	upnpError800 := `<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <s:Fault>
+      <faultcode>s:Client</faultcode>
+      <faultstring>UPnPError</faultstring>
+      <detail>
+        <UPnPError xmlns="urn:schemas-upnp-org:control-1-0">
+          <errorCode>800</errorCode>
+          <errorDescription>Failed to queue item</errorDescription>
+        </UPnPError>
+      </detail>
+    </s:Fault>
+  </s:Body>
+</s:Envelope>`
+
+	rt := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		action := r.Header.Get("SOAPACTION")
+		if !strings.Contains(action, "#AddURIToQueue") {
+			t.Fatalf("unexpected SOAPACTION %q", action)
+		}
+		bodyBytes, _ := io.ReadAll(r.Body)
+		_ = r.Body.Close()
+		body := string(bodyBytes)
+
+		switch {
+		case strings.Contains(body, "<EnqueuedURI>x-sonos-spotify:spotify%3atrack%3aabc123?sid=2311&amp;sn=0</EnqueuedURI>"):
+			attemptedURIs = append(attemptedURIs, "x-sonos-spotify:spotify%3atrack%3aabc123?sid=2311&sn=0")
+			return httpResponse(500, upnpError800), nil
+		case strings.Contains(body, "<EnqueuedURI>x-sonos-spotify:spotify%3atrack%3aabc123</EnqueuedURI>"):
+			attemptedURIs = append(attemptedURIs, "x-sonos-spotify:spotify%3atrack%3aabc123")
+			return httpResponse(200, soapResp("AddURIToQueue", "<FirstTrackNumberEnqueued>3</FirstTrackNumberEnqueued>")), nil
+		default:
+			t.Fatalf("unexpected EnqueuedURI body: %s", body)
+			return nil, nil
+		}
+	})
+
+	c := &Client{
+		IP: "192.0.2.1",
+		HTTP: &http.Client{
+			Timeout:   time.Second,
+			Transport: rt,
+		},
+	}
+
+	first, err := c.EnqueueSpotify(context.Background(), "spotify:track:abc123", EnqueueOptions{
+		Title:   "Fallback",
+		PlayNow: false,
+	})
+	if err != nil {
+		t.Fatalf("EnqueueSpotify: %v", err)
+	}
+	if first != 3 {
+		t.Fatalf("FirstTrackNumberEnqueued: %d", first)
+	}
+	expected := []string{
+		"x-sonos-spotify:spotify%3atrack%3aabc123?sid=2311&sn=0",
+		"x-sonos-spotify:spotify%3atrack%3aabc123",
+	}
+	if strings.Join(attemptedURIs, "|") != strings.Join(expected, "|") {
+		t.Fatalf("attempted URIs mismatch: got %v want %v", attemptedURIs, expected)
 	}
 }

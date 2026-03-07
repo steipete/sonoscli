@@ -114,8 +114,7 @@ func (c *Client) EnqueueSpotify(ctx context.Context, input string, opts EnqueueO
 	var lastErr error
 	for _, serviceNum := range ref.ServiceNums {
 		meta := buildShareDIDL(itemIDKey+ref.EncodedID, title, itemClass, serviceNum)
-		for _, prefix := range uriPrefixes {
-			enqueuedURI := prefix + ref.EncodedID
+		for _, enqueuedURI := range spotifyEnqueueURIs(ref.Kind, ref.EncodedID, serviceNum, uriPrefixes) {
 			first, err := c.AddURIToQueue(ctx, enqueuedURI, meta, desiredPos, opts.AsNext)
 			if err != nil {
 				lastErr = err
@@ -136,6 +135,23 @@ func (c *Client) EnqueueSpotify(ctx context.Context, input string, opts EnqueueO
 		lastErr = errors.New("enqueue failed")
 	}
 	return 0, lastErr
+}
+
+func spotifyEnqueueURIs(kind SpotifyKind, encodedID string, serviceNum int, uriPrefixes []string) []string {
+	switch kind {
+	case SpotifyTrack, SpotifyEpisode:
+		return []string{
+			fmt.Sprintf("x-sonos-spotify:%s?sid=%d&sn=0", encodedID, serviceNum),
+			"x-sonos-spotify:" + encodedID,
+			encodedID,
+		}
+	default:
+		uris := make([]string, 0, len(uriPrefixes))
+		for _, prefix := range uriPrefixes {
+			uris = append(uris, prefix+encodedID)
+		}
+		return uris
+	}
 }
 
 func spotifySonosMagic(kind SpotifyKind) (itemClass string, itemIDKey string, uriPrefixes []string) {

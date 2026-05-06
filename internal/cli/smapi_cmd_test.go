@@ -414,11 +414,14 @@ func TestSMAPISearchCmd_EnqueuesNonSpotifyServiceItem(t *testing.T) {
 		t.Fatalf("unexpected output: %q", out)
 	}
 	body, _ := fs.lastAddURIToQueue.Load().(string)
-	if !strings.Contains(body, "<EnqueuedURI>soco://SONG%3A449205%3AST?sid=23&amp;sn=0</EnqueuedURI>") {
-		t.Fatalf("expected generic SMAPI enqueue URI, body: %s", body)
+	if !strings.Contains(body, "<EnqueuedURI>soco://0fffffffSONG%253A449205%253AST?sid=23&amp;sn=0</EnqueuedURI>") {
+		t.Fatalf("expected SoCo-compatible SMAPI enqueue URI, body: %s", body)
 	}
-	if !strings.Contains(body, "SA_RINCON5895_X_#Svc5895-0-Token") {
-		t.Fatalf("expected SMAPI service descriptor, body: %s", body)
+	if !strings.Contains(body, `item id=&#34;0fffffffSONG%3A449205%3AST&#34;`) {
+		t.Fatalf("expected SoCo-compatible DIDL item id, body: %s", body)
+	}
+	if !strings.Contains(body, "SA_RINCON5895_") {
+		t.Fatalf("expected AppLink SMAPI service descriptor, body: %s", body)
 	}
 	if fs.playCalls.Load() != 0 {
 		t.Fatalf("enqueue-only should not call Play")

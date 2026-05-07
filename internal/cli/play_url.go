@@ -54,11 +54,14 @@ func newPlayURLCmd(flags *rootFlags) *cobra.Command {
 	var provider string
 	var bitrate string
 	var port int
+	var playlistMode bool
+	var noPlaylist bool
+	var playlistLimit int
 
 	cmd := &cobra.Command{
 		Use:          "play-url <url>",
 		Short:        "Play a URL through a Sonos-safe local stream proxy",
-		Long:         "Resolves common media pages with yt-dlp when useful, starts a short-lived local MP3 proxy, points Sonos at it, and exits the proxy when playback ends or goes idle.",
+		Long:         "Resolves common media pages with yt-dlp when useful, starts a short-lived local MP3 proxy, points Sonos at it, and exits the proxy when playback ends or goes idle.\n\nPlaylist URLs (YouTube/yt-dlp `?list=…` without `?v=…`) are auto-detected and every track is enqueued. Use --playlist or --no-playlist to override the detection on ambiguous watch+playlist URLs.",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -68,6 +71,21 @@ func newPlayURLCmd(flags *rootFlags) *cobra.Command {
 			rawURL := strings.TrimSpace(args[0])
 			if rawURL == "" {
 				return errors.New("url is required")
+			}
+
+			if playlistMode && noPlaylist {
+				return errors.New("--playlist and --no-playlist are mutually exclusive")
+			}
+			runAsPlaylist := playlistMode || (!noPlaylist && looksLikePlaylistURL(rawURL))
+			if runAsPlaylist {
+				return runPlayURLPlaylist(cmd, flags, rawURL, playlistRunOptions{
+					YTDLPPath:   ytDLPPath,
+					FFmpegPath:  ffmpegPath,
+					MediaFormat: mediaFormat,
+					Bitrate:     bitrate,
+					Port:        port,
+					Limit:       playlistLimit,
+				})
 			}
 
 			resolver := streamproxy.Resolver{YTDLPPath: ytDLPPath, Format: mediaFormat}
@@ -145,6 +163,9 @@ func newPlayURLCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().StringVar(&title, "title", "", "Override display title")
 	cmd.Flags().StringVar(&provider, "provider", "", "Override provider/source label")
 	cmd.Flags().StringVar(&bitrate, "bitrate", "192k", "MP3 proxy bitrate")
+	cmd.Flags().BoolVar(&playlistMode, "playlist", false, "Force playlist mode (enumerate every track and enqueue)")
+	cmd.Flags().BoolVar(&noPlaylist, "no-playlist", false, "Force single-track mode for playlist URLs")
+	cmd.Flags().IntVar(&playlistLimit, "playlist-limit", 0, "Maximum number of items to enqueue when in playlist mode (0 = no limit)")
 	cmd.Flags().IntVar(&port, "port", 0, "Local proxy port (default: random free port)")
 	return cmd
 }

@@ -111,7 +111,6 @@ func newRootCmd() (*cobra.Command, *rootFlags, error) {
 	rootCmd.AddCommand(newOpenCmd(flags))
 	rootCmd.AddCommand(newEnqueueCmd(flags))
 	rootCmd.AddCommand(newPlayURLCmd(flags))
-	rootCmd.AddCommand(newPlayURLPlaylistCmd(flags))
 	rootCmd.AddCommand(newSearchCmd(flags))
 	rootCmd.AddCommand(newAuthCmd(flags))
 	rootCmd.AddCommand(newSMAPICmd(flags))

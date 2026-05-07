@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,9 +17,10 @@ import (
 )
 
 type playlistTrack struct {
-	ID    string
-	Title string
-	URL   string
+	ID       string
+	Title    string
+	URL      string
+	Duration time.Duration // optional; zero when yt-dlp didn't report a duration
 }
 
 type playlistClient interface {
@@ -46,128 +47,138 @@ var (
 	}
 )
 
-func newPlayURLPlaylistCmd(flags *rootFlags) *cobra.Command {
-	var ytDLPPath string
-	var ffmpegPath string
-	var mediaFormat string
-	var bitrate string
-	var port int
-	var limit int
+// playlistRunOptions bundles the per-call configuration for runPlayURLPlaylist.
+type playlistRunOptions struct {
+	YTDLPPath   string
+	FFmpegPath  string
+	MediaFormat string
+	Bitrate     string
+	Port        int
+	Limit       int
+}
 
-	cmd := &cobra.Command{
-		Use:          "play-url-playlist <url>",
-		Short:        "Play a YouTube/yt-dlp playlist URL by enqueueing every track through the local stream proxy",
-		Long:         "Enumerates a yt-dlp-supported playlist URL, starts a single local stream proxy that exposes one HTTP path per track, then clears the speaker's queue, adds each track URL, and plays from the first.",
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := validateTarget(flags); err != nil {
-				return err
-			}
-			rawURL := strings.TrimSpace(args[0])
-			if rawURL == "" {
-				return errors.New("playlist url is required")
-			}
+// looksLikePlaylistURL returns true when a URL is unambiguously a YouTube
+// playlist page — `?list=` is present and there's no `?v=` to fall back to.
+// Other yt-dlp playlist sources can be opted into with `--playlist`.
+func looksLikePlaylistURL(rawURL string) bool {
+	u, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(strings.TrimPrefix(u.Host, "www."))
+	switch host {
+	case "youtube.com", "music.youtube.com", "youtu.be":
+	default:
+		return false
+	}
+	q := u.Query()
+	return strings.TrimSpace(q.Get("list")) != "" && strings.TrimSpace(q.Get("v")) == ""
+}
 
-			tracks, err := playlistEnumerator(cmd.Context(), strings.TrimSpace(ytDLPPath), rawURL, limit)
-			if err != nil {
-				return err
-			}
-			if len(tracks) == 0 {
-				return fmt.Errorf("yt-dlp returned no playlist items for %q", rawURL)
-			}
-
-			target, err := newPlaylistTarget(cmd.Context(), flags)
-			if err != nil {
-				return err
-			}
-
-			localIP, err := chooseLocalIP(target.ip)
-			if err != nil {
-				return err
-			}
-			listenPort := port
-			if listenPort == 0 {
-				listenPort, err = freeTCPPort()
-				if err != nil {
-					return err
-				}
-			}
-
-			proxyTracks := make([]streamproxy.Track, 0, len(tracks))
-			queueURIs := make([]string, 0, len(tracks))
-			for i, t := range tracks {
-				trackPath := fmt.Sprintf("/track-%03d.mp3", i+1)
-				proxyTracks = append(proxyTracks, streamproxy.Track{
-					Path: trackPath,
-					Source: streamproxy.Source{
-						URL:      t.URL,
-						Title:    t.Title,
-						Provider: "YouTube",
-						UseYTDLP: true,
-					},
-				})
-				queueURIs = append(queueURIs, fmt.Sprintf("http://%s:%d%s", localIP, listenPort, trackPath))
-			}
-
-			cfg := streamproxy.ServerConfig{
-				Tracks:      proxyTracks,
-				Addr:        fmt.Sprintf("0.0.0.0:%d", listenPort),
-				YTDLPPath:   ytDLPPath,
-				FFmpegPath:  ffmpegPath,
-				Format:      mediaFormat,
-				Bitrate:     bitrate,
-				IdleTimeout: 60 * time.Second,
-			}
-			// Use the first track's path for daemon readiness probing.
-			daemon, err := launchStreamDaemon(cmd.Context(), cfg, queueURIs[0])
-			if err != nil {
-				return err
-			}
-
-			if err := target.client.RemoveAllTracksFromQueue(cmd.Context()); err != nil {
-				return err
-			}
-			firstTrackNum := 0
-			for i, uri := range queueURIs {
-				meta := sonos.BuildStreamProxyMeta(tracks[i].Title, "YouTube")
-				first, err := target.client.AddURIToQueue(cmd.Context(), uri, meta, 0, false)
-				if err != nil {
-					return fmt.Errorf("AddURIToQueue track %d: %w", i+1, err)
-				}
-				if i == 0 && first > 0 {
-					firstTrackNum = first
-				}
-			}
-			if firstTrackNum <= 0 {
-				firstTrackNum = 1
-			}
-			if err := target.client.PlayFromQueueTrack(cmd.Context(), firstTrackNum); err != nil {
-				return err
-			}
-
-			out := make([]map[string]any, len(tracks))
-			for i, t := range tracks {
-				out[i] = map[string]any{"index": i + 1, "title": t.Title, "uri": queueURIs[i], "sourceUrl": t.URL}
-			}
-			return writeOK(cmd, flags, "play-url-playlist", map[string]any{
-				"sourceUrl":  rawURL,
-				"trackCount": len(tracks),
-				"tracks":     out,
-				"publicUrl":  daemon.PublicURL,
-				"pid":        daemon.PID,
-				"logPath":    daemon.LogPath,
-			})
-		},
+// runPlayURLPlaylist enumerates rawURL with yt-dlp, queues every track on the
+// targeted speaker, and starts playback at track 1. It is invoked by the
+// play-url command when playlist mode is selected (auto-detect or `--playlist`).
+func runPlayURLPlaylist(cmd *cobra.Command, flags *rootFlags, rawURL string, opts playlistRunOptions) error {
+	tracks, err := playlistEnumerator(cmd.Context(), strings.TrimSpace(opts.YTDLPPath), rawURL, opts.Limit)
+	if err != nil {
+		return err
+	}
+	if len(tracks) == 0 {
+		return fmt.Errorf("yt-dlp returned no playlist items for %q", rawURL)
 	}
 
-	cmd.Flags().StringVar(&ytDLPPath, "yt-dlp", "yt-dlp", "Path to yt-dlp")
-	cmd.Flags().StringVar(&ffmpegPath, "ffmpeg", "ffmpeg", "Path to ffmpeg")
-	cmd.Flags().StringVar(&mediaFormat, "media-format", streamproxy.DefaultFormat, "yt-dlp format selector applied to every track")
-	cmd.Flags().StringVar(&bitrate, "bitrate", "192k", "MP3 proxy bitrate")
-	cmd.Flags().IntVar(&port, "port", 0, "Local proxy port (default: random free port)")
-	cmd.Flags().IntVar(&limit, "limit", 0, "Maximum number of playlist items to enqueue (0 = no limit)")
-	return cmd
+	target, err := newPlaylistTarget(cmd.Context(), flags)
+	if err != nil {
+		return err
+	}
+
+	localIP, err := chooseLocalIP(target.ip)
+	if err != nil {
+		return err
+	}
+	listenPort := opts.Port
+	if listenPort == 0 {
+		listenPort, err = freeTCPPort()
+		if err != nil {
+			return err
+		}
+	}
+
+	proxyTracks := make([]streamproxy.Track, 0, len(tracks))
+	queueURIs := make([]string, 0, len(tracks))
+	for i, t := range tracks {
+		trackPath := fmt.Sprintf("/track-%03d.mp3", i+1)
+		proxyTracks = append(proxyTracks, streamproxy.Track{
+			Path: trackPath,
+			Source: streamproxy.Source{
+				URL:             t.URL,
+				Title:           t.Title,
+				Provider:        "YouTube",
+				UseYTDLP:        true,
+				DurationSeconds: t.Duration.Seconds(),
+			},
+		})
+		queueURIs = append(queueURIs, fmt.Sprintf("http://%s:%d%s", localIP, listenPort, trackPath))
+	}
+
+	cfg := streamproxy.ServerConfig{
+		Tracks:      proxyTracks,
+		Addr:        fmt.Sprintf("0.0.0.0:%d", listenPort),
+		YTDLPPath:   opts.YTDLPPath,
+		FFmpegPath:  opts.FFmpegPath,
+		Format:      opts.MediaFormat,
+		Bitrate:     opts.Bitrate,
+		IdleTimeout: 60 * time.Second,
+	}
+	// Use the first track's path for daemon readiness probing.
+	daemon, err := launchStreamDaemon(cmd.Context(), cfg, queueURIs[0])
+	if err != nil {
+		return err
+	}
+
+	// Sonos AddURIToQueue probes each enqueued URI (HEAD, sometimes a short
+	// GET) before returning. With long playlists and the proxy on the same
+	// LAN this comfortably outruns the default 5 s --timeout, especially
+	// when the speaker is also pre-fetching audio for the currently playing
+	// track. Use a per-operation timeout that covers the whole queue
+	// build-out independently of --timeout.
+	queueCtx, cancelQueue := context.WithTimeout(context.WithoutCancel(cmd.Context()), 60*time.Second)
+	defer cancelQueue()
+
+	if err := target.client.RemoveAllTracksFromQueue(queueCtx); err != nil {
+		return err
+	}
+	firstTrackNum := 0
+	for i, uri := range queueURIs {
+		meta := sonos.BuildStreamProxyTrackMeta(tracks[i].Title, "YouTube", uri, tracks[i].Duration)
+		first, err := target.client.AddURIToQueue(queueCtx, uri, meta, 0, false)
+		if err != nil {
+			return fmt.Errorf("AddURIToQueue track %d: %w", i+1, err)
+		}
+		if i == 0 && first > 0 {
+			firstTrackNum = first
+		}
+	}
+	if firstTrackNum <= 0 {
+		firstTrackNum = 1
+	}
+	if err := target.client.PlayFromQueueTrack(queueCtx, firstTrackNum); err != nil {
+		return err
+	}
+
+	out := make([]map[string]any, len(tracks))
+	for i, t := range tracks {
+		out[i] = map[string]any{"index": i + 1, "title": t.Title, "uri": queueURIs[i], "sourceUrl": t.URL}
+	}
+	return writeOK(cmd, flags, "play-url", map[string]any{
+		"sourceUrl":  rawURL,
+		"playlist":   true,
+		"trackCount": len(tracks),
+		"tracks":     out,
+		"publicUrl":  daemon.PublicURL,
+		"pid":        daemon.PID,
+		"logPath":    daemon.LogPath,
+	})
 }
 
 func enumerateYTDLPPlaylist(ctx context.Context, ytDLPPath, rawURL string, limit int) ([]playlistTrack, error) {
@@ -176,7 +187,7 @@ func enumerateYTDLPPlaylist(ctx context.Context, ytDLPPath, rawURL string, limit
 		path = "yt-dlp"
 	}
 
-	args := []string{"--no-warnings", "--flat-playlist", "--print", "%(id)s\t%(title)s"}
+	args := []string{"--no-warnings", "--flat-playlist", "--print", "%(id)s\t%(duration)s\t%(title)s"}
 	if limit > 0 {
 		args = append(args, "--playlist-end", fmt.Sprintf("%d", limit))
 	}
@@ -203,21 +214,28 @@ func enumerateYTDLPPlaylist(ctx context.Context, ytDLPPath, rawURL string, limit
 		if line == "" {
 			continue
 		}
-		parts := strings.SplitN(line, "\t", 2)
+		parts := strings.SplitN(line, "\t", 3)
 		id := strings.TrimSpace(parts[0])
 		if id == "" {
 			continue
 		}
+		var duration time.Duration
+		if len(parts) >= 2 {
+			if secs, err := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64); err == nil && secs > 0 {
+				duration = time.Duration(secs * float64(time.Second))
+			}
+		}
 		title := id
-		if len(parts) == 2 {
-			if t := strings.TrimSpace(parts[1]); t != "" {
+		if len(parts) == 3 {
+			if t := strings.TrimSpace(parts[2]); t != "" {
 				title = t
 			}
 		}
 		tracks = append(tracks, playlistTrack{
-			ID:    id,
-			Title: title,
-			URL:   youTubeWatchPrefix + url.QueryEscape(id),
+			ID:       id,
+			Title:    title,
+			URL:      youTubeWatchPrefix + url.QueryEscape(id),
+			Duration: duration,
 		})
 	}
 	if err := scanner.Err(); err != nil {

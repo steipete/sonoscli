@@ -3,9 +3,11 @@ package streamproxy
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestResolveAutoYouTubePropagatesYTDLPFailure(t *testing.T) {
@@ -142,6 +144,9 @@ case " $* " in
   *" -g "*)
     printf '%s\n' 'https://cdn.example/from-g.m4a'
     ;;
+  *" --warmup "*)
+    exit 0
+    ;;
   *)
     cat <<'JSON'
 {"title":"Track Title","url":"https://cdn.example/audio.m4a","webpage_url":"https://soundcloud.com/artist/track","extractor_key":"SoundCloud","thumbnail":"https://img.example/t.jpg","format_id":"140","ext":"m4a","acodec":"mp4a.40.2"}
@@ -152,5 +157,23 @@ esac
 	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
 		t.Fatalf("write fake yt-dlp: %v", err)
 	}
+	waitForExecutable(t, path)
 	return path
+}
+
+// waitForExecutable spins up to a second waiting for a freshly written
+// script to become exec'able. Without this, Linux can return ETXTBSY
+// ("text file busy") when the file's writer fd hasn't been flushed yet.
+func waitForExecutable(t *testing.T, path string) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for {
+		if err := exec.Command(path, "--warmup").Run(); err == nil { //nolint:gosec // test-owned helper script.
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("fake binary at %s did not become executable", path)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }

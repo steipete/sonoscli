@@ -45,7 +45,7 @@ func (f *fakePlaylistClient) PlayFromQueueTrack(ctx context.Context, oneBasedTra
 
 func TestPlayURLPlaylistCmdEnqueuesAllTracksAndPlaysFromFirst(t *testing.T) {
 	flags := &rootFlags{Name: "Office", Timeout: 2 * time.Second}
-	cmd := newPlayURLPlaylistCmd(flags)
+	cmd := newPlayURLCmd(flags)
 
 	fake := &fakePlaylistClient{}
 	var gotCfg streamproxy.ServerConfig
@@ -112,7 +112,7 @@ func TestPlayURLPlaylistCmdEnqueuesAllTracksAndPlaysFromFirst(t *testing.T) {
 
 func TestPlayURLPlaylistCmdReturnsErrorWhenPlaylistEmpty(t *testing.T) {
 	flags := &rootFlags{Name: "Office", Timeout: 2 * time.Second}
-	cmd := newPlayURLPlaylistCmd(flags)
+	cmd := newPlayURLCmd(flags)
 
 	origEnumerator := playlistEnumerator
 	t.Cleanup(func() { playlistEnumerator = origEnumerator })
@@ -133,7 +133,7 @@ func TestPlayURLPlaylistCmdReturnsErrorWhenPlaylistEmpty(t *testing.T) {
 
 func TestPlayURLPlaylistCmdReturnsErrorWhenEnumerationFails(t *testing.T) {
 	flags := &rootFlags{Name: "Office", Timeout: 2 * time.Second}
-	cmd := newPlayURLPlaylistCmd(flags)
+	cmd := newPlayURLCmd(flags)
 
 	origEnumerator := playlistEnumerator
 	t.Cleanup(func() { playlistEnumerator = origEnumerator })
@@ -151,12 +151,12 @@ func TestPlayURLPlaylistCmdReturnsErrorWhenEnumerationFails(t *testing.T) {
 	}
 }
 
-func TestEnumerateYTDLPPlaylistParsesIDsAndTitles(t *testing.T) {
+func TestEnumerateYTDLPPlaylistParsesIDsTitlesAndDurations(t *testing.T) {
 	t.Parallel()
 
-	ytDLP := writeFakeYTDLPPlaylist(t, `aaa	First Track
-bbb	Second Track
-ccc	Third Track
+	ytDLP := writeFakeYTDLPPlaylist(t, `aaa	191	First Track
+bbb	245.5	Second Track
+ccc	NA	Third Track
 `)
 
 	tracks, err := enumerateYTDLPPlaylist(context.Background(), ytDLP, "https://music.youtube.com/playlist?list=foo", 0)
@@ -169,6 +169,15 @@ ccc	Third Track
 	if tracks[0].ID != "aaa" || tracks[0].Title != "First Track" {
 		t.Fatalf("tracks[0] = %+v", tracks[0])
 	}
+	if tracks[0].Duration != 191*time.Second {
+		t.Fatalf("tracks[0].Duration = %s, want 3m11s", tracks[0].Duration)
+	}
+	if tracks[1].Duration != time.Duration(245.5*float64(time.Second)) {
+		t.Fatalf("tracks[1].Duration = %s, want 4m05.5s", tracks[1].Duration)
+	}
+	if tracks[2].Duration != 0 {
+		t.Fatalf("tracks[2].Duration = %s, want zero (NA)", tracks[2].Duration)
+	}
 	if tracks[2].URL != "https://www.youtube.com/watch?v=ccc" {
 		t.Fatalf("tracks[2].URL = %q", tracks[2].URL)
 	}
@@ -177,8 +186,8 @@ ccc	Third Track
 func TestEnumerateYTDLPPlaylistFallsBackToIDWhenTitleMissing(t *testing.T) {
 	t.Parallel()
 
-	// Two lines: one with only an id, one with id+title.
-	ytDLP := writeFakeYTDLPPlaylist(t, "loneid\t\nidtwo\tWith Title\n")
+	// Two lines: one with only an id+missing duration, one fully populated.
+	ytDLP := writeFakeYTDLPPlaylist(t, "loneid\tNA\t\nidtwo\t120\tWith Title\n")
 
 	tracks, err := enumerateYTDLPPlaylist(context.Background(), ytDLP, "https://example.com/playlist", 0)
 	if err != nil {
@@ -190,8 +199,8 @@ func TestEnumerateYTDLPPlaylistFallsBackToIDWhenTitleMissing(t *testing.T) {
 	if tracks[0].Title != "loneid" {
 		t.Fatalf("expected fallback title = id, got %q", tracks[0].Title)
 	}
-	if tracks[1].Title != "With Title" {
-		t.Fatalf("tracks[1].Title = %q", tracks[1].Title)
+	if tracks[1].Title != "With Title" || tracks[1].Duration != 2*time.Minute {
+		t.Fatalf("tracks[1] = %+v", tracks[1])
 	}
 }
 

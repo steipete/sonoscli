@@ -2,6 +2,7 @@ package sonos
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
@@ -63,4 +64,28 @@ func (c *Client) PlayQueuePosition(ctx context.Context, position int) error {
 		return fmt.Errorf("position must be >= 1")
 	}
 	return c.playFromQueueTrack(ctx, position)
+}
+
+// PlayFromQueueTrack binds the speaker's AVTransport to its queue and starts
+// playback at the given 1-based track number.
+func (c *Client) PlayFromQueueTrack(ctx context.Context, oneBasedTrackNumber int) error {
+	return c.playFromQueueTrack(ctx, oneBasedTrackNumber)
+}
+
+func (c *Client) playFromQueueTrack(ctx context.Context, oneBasedTrackNumber int) error {
+	dd, err := c.GetDeviceDescription(ctx)
+	if err != nil {
+		return err
+	}
+	if dd.UDN == "" {
+		return errors.New("missing device UDN")
+	}
+	queueURI := "x-rincon-queue:" + dd.UDN + "#0"
+	if err := c.SetAVTransportURI(ctx, queueURI, ""); err != nil {
+		return err
+	}
+	if err := c.SeekTrackNumber(ctx, oneBasedTrackNumber); err != nil {
+		return err
+	}
+	return c.Play(ctx)
 }

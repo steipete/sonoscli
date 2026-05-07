@@ -18,6 +18,18 @@ type Source struct {
 	FormatID  string `json:"formatId,omitempty"`
 	Ext       string `json:"ext,omitempty"`
 	ACodec    string `json:"acodec,omitempty"`
+	// DurationSeconds is the known finite duration of the source, in seconds.
+	// When > 0 the proxy treats the response as a finite track (no icy-*
+	// headers) so Sonos schedules the next-queue-entry advance instead of
+	// playing it like a radio station.
+	DurationSeconds float64 `json:"durationSeconds,omitempty"`
+}
+
+// IsFiniteTrack reports whether this source has a known finite duration and
+// should therefore be served as a regular MP3 file rather than as an
+// icy-tagged radio stream.
+func (s Source) IsFiniteTrack() bool {
+	return s.DurationSeconds > 0
 }
 
 func (s Source) DisplayTitle() string {

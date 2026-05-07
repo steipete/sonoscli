@@ -128,10 +128,31 @@ func TestHandleStreamCopiesFFmpegOutput(t *testing.T) {
 	}
 }
 
+func TestHandleStreamFallsBackToSourceURLWhenInputURLEmpty(t *testing.T) {
+	t.Parallel()
+
+	ffmpeg := fakeFFmpeg(t, "url-fallback output")
+	srv := NewServer(ServerConfig{
+		Source:     Source{URL: "https://example.com/episode.mp3"},
+		FFmpegPath: ffmpeg,
+	})
+	req := httptest.NewRequest(http.MethodGet, "/stream.mp3", nil)
+	rec := httptest.NewRecorder()
+
+	srv.handleStream(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if got := strings.TrimSuffix(rec.Body.String(), "\n"); got != "url-fallback output" {
+		t.Fatalf("body = %q", got)
+	}
+}
+
 func TestHandleStreamPipesYTDLPThroughFFmpeg(t *testing.T) {
 	t.Parallel()
 
-	ffmpeg := fakeFFmpeg(t, "piped output")
+	ffmpeg := fakeFFmpegEchoStdin(t)
 	ytDLP := fakeYTDLP(t)
 	srv := NewServer(ServerConfig{
 		Source:     Source{URL: "https://example.com/page", UseYTDLP: true},
@@ -146,8 +167,10 @@ func TestHandleStreamPipesYTDLPThroughFFmpeg(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d body=%q", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	if got := strings.TrimSuffix(rec.Body.String(), "\n"); got != "piped output" {
-		t.Fatalf("body = %q, want %q", got, "piped output")
+	// fakeYTDLP without -g/-j flags writes its JSON template to stdout; fakeFFmpegEchoStdin
+	// copies stdin to stdout, so the response body must contain that JSON.
+	if !strings.Contains(rec.Body.String(), `"title":"Track Title"`) {
+		t.Fatalf("expected yt-dlp output piped through ffmpeg in body, got %q", rec.Body.String())
 	}
 }
 
@@ -180,6 +203,20 @@ func TestHandleStreamErrors(t *testing.T) {
 	t.Run("ffmpeg", func(t *testing.T) {
 		srv := NewServer(ServerConfig{
 			Source:     Source{URL: "https://example.com/episode.mp3", InputURL: "https://example.com/episode.mp3"},
+			FFmpegPath: filepath.Join(t.TempDir(), "missing-ffmpeg"),
+		})
+		req := httptest.NewRequest(http.MethodGet, "/stream.mp3", nil)
+		rec := httptest.NewRecorder()
+		srv.handleStream(rec, req)
+		if rec.Code != http.StatusBadGateway {
+			t.Fatalf("status = %d, want %d", rec.Code, http.StatusBadGateway)
+		}
+	})
+
+	t.Run("ffmpeg_with_ytdlp_running", func(t *testing.T) {
+		srv := NewServer(ServerConfig{
+			Source:     Source{URL: "https://example.com/page", UseYTDLP: true},
+			YTDLPPath:  fakeYTDLP(t),
 			FFmpegPath: filepath.Join(t.TempDir(), "missing-ffmpeg"),
 		})
 		req := httptest.NewRequest(http.MethodGet, "/stream.mp3", nil)
@@ -310,6 +347,56 @@ func TestServeHealthAndShutdown(t *testing.T) {
 	}
 }
 
+func TestServeHandlesStreamOverHTTP(t *testing.T) {
+	t.Parallel()
+
+	ffmpeg := fakeFFmpeg(t, "served body")
+	port := freeTestTCPPort(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	srv := NewServer(ServerConfig{
+		Addr:        "127.0.0.1:" + port,
+		Path:        "/stream.mp3",
+		Source:      Source{URL: "https://example.com/episode.mp3", InputURL: "https://example.com/episode.mp3", Title: "Episode"},
+		FFmpegPath:  ffmpeg,
+		IdleTimeout: time.Second,
+	})
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- srv.Serve(ctx)
+	}()
+
+	streamURL := "http://127.0.0.1:" + port + "/stream.mp3"
+	deadline := time.Now().Add(2 * time.Second)
+	var body []byte
+	for {
+		resp, err := http.Get(streamURL) //nolint:gosec // local test server URL.
+		if err == nil && resp.StatusCode == http.StatusOK {
+			body, _ = io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			break
+		}
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("could not fetch stream: %v", err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := strings.TrimSuffix(string(body), "\n"); got != "served body" {
+		t.Fatalf("body = %q, want %q", got, "served body")
+	}
+
+	cancel()
+	select {
+	case <-errCh:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("server did not stop")
+	}
+}
+
 func TestServeListenError(t *testing.T) {
 	t.Parallel()
 
@@ -424,6 +511,33 @@ type errWriter struct{}
 
 func (errWriter) Write([]byte) (int, error) {
 	return 0, io.ErrClosedPipe
+}
+
+func fakeFFmpegEchoStdin(t *testing.T) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "ffmpeg")
+	script := `#!/bin/sh
+if [ "${1:-}" = "-version" ]; then
+  printf '%s\n' 'ffmpeg version test'
+  exit 0
+fi
+cat
+`
+	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
+		t.Fatalf("write fake ffmpeg: %v", err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for {
+		if err := exec.Command(path, "-version").Run(); err == nil { //nolint:gosec // test-owned helper script.
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("fake ffmpeg did not become executable")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return path
 }
 
 func fakeFFmpeg(t *testing.T, output string) string {

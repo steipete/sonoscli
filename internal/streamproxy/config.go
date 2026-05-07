@@ -12,6 +12,7 @@ const (
 	DefaultAddr        = "127.0.0.1:0"
 	DefaultPath        = "/stream.mp3"
 	DefaultFFmpegPath  = "ffmpeg"
+	DefaultYTDLPPath   = "yt-dlp"
 	DefaultBitrate     = "192k"
 	DefaultIdleTimeout = 20 * time.Second
 	HealthPath         = "/healthz"
@@ -49,6 +50,12 @@ func (cfg ServerConfig) withDefaults() ServerConfig {
 	}
 	if strings.TrimSpace(cfg.FFmpegPath) == "" {
 		cfg.FFmpegPath = DefaultFFmpegPath
+	}
+	if strings.TrimSpace(cfg.YTDLPPath) == "" {
+		cfg.YTDLPPath = DefaultYTDLPPath
+	}
+	if strings.TrimSpace(cfg.Format) == "" {
+		cfg.Format = DefaultFormat
 	}
 	if strings.TrimSpace(cfg.Bitrate) == "" {
 		cfg.Bitrate = DefaultBitrate

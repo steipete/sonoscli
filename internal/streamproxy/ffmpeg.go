@@ -76,20 +76,12 @@ func (s *Server) ffmpegStdinCommand(ctx context.Context) *exec.Cmd {
 }
 
 func (s *Server) ytDLPDownloadCommand(ctx context.Context, sourceURL string) *exec.Cmd {
-	path := strings.TrimSpace(s.cfg.YTDLPPath)
-	if path == "" {
-		path = "yt-dlp"
-	}
-	format := strings.TrimSpace(s.cfg.Format)
-	if format == "" {
-		format = DefaultFormat
-	}
 	//nolint:gosec // yt-dlp path is configured by CLI flag; the source URL was supplied by the user.
-	return exec.CommandContext(ctx, path,
+	return exec.CommandContext(ctx, strings.TrimSpace(s.cfg.YTDLPPath),
 		"--no-playlist",
 		"--no-warnings",
 		"--quiet",
-		"-f", format,
+		"-f", strings.TrimSpace(s.cfg.Format),
 		"-o", "-",
 		sourceURL,
 	)

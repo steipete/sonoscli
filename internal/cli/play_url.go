@@ -61,7 +61,7 @@ func newPlayURLCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "play-url <url>",
 		Short:        "Play a URL through a Sonos-safe local stream proxy",
-		Long:         "Resolves common media pages with yt-dlp when useful, starts a short-lived local MP3 proxy, points Sonos at it, and exits the proxy when playback ends or goes idle.\n\nPlaylist URLs (YouTube/yt-dlp `?list=…` without `?v=…`) are auto-detected and every track is enqueued. Use --playlist or --no-playlist to override the detection on ambiguous watch+playlist URLs.",
+		Long:         "Resolves common media pages with yt-dlp when useful, starts a short-lived local MP3 proxy, points Sonos at it, and exits the proxy when playback ends or goes idle.\n\nUnambiguous YouTube / YouTube Music playlist URLs (`?list=…` with no video id) are auto-detected and every track is enqueued. Use --playlist or --no-playlist to override the detection on ambiguous watch+playlist URLs.",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -63,8 +63,8 @@ func TestPlayURLPlaylistCmdEnqueuesAllTracksAndPlaysFromFirst(t *testing.T) {
 
 	playlistEnumerator = func(ctx context.Context, ytDLPPath, rawURL string, limit int) ([]playlistTrack, error) {
 		return []playlistTrack{
-			{ID: "aaa", Title: "Alpha", URL: "https://www.youtube.com/watch?v=aaa"},
-			{ID: "bbb", Title: "Bravo", URL: "https://www.youtube.com/watch?v=bbb"},
+			{ID: "aaa", Title: "Alpha", URL: "https://www.youtube.com/watch?v=aaa", Provider: "YouTube"},
+			{ID: "bbb", Title: "Bravo", URL: "https://www.youtube.com/watch?v=bbb", Provider: "YouTube"},
 		}, nil
 	}
 	newPlaylistTarget = func(ctx context.Context, flags *rootFlags) (playlistTarget, error) {
@@ -154,9 +154,9 @@ func TestPlayURLPlaylistCmdReturnsErrorWhenEnumerationFails(t *testing.T) {
 func TestEnumerateYTDLPPlaylistParsesIDsTitlesAndDurations(t *testing.T) {
 	t.Parallel()
 
-	ytDLP := writeFakeYTDLPPlaylist(t, `aaa	191	First Track
-bbb	245.5	Second Track
-ccc	NA	Third Track
+	ytDLP := writeFakeYTDLPPlaylist(t, `https://music.youtube.com/watch?v=aaa	https://music.youtube.com/watch?v=aaa	Youtube	aaa	191	First Track
+https://music.youtube.com/watch?v=bbb	https://music.youtube.com/watch?v=bbb	Youtube	bbb	245.5	Second Track
+NA	NA	Youtube	ccc	NA	Third Track
 `)
 
 	tracks, err := enumerateYTDLPPlaylist(context.Background(), ytDLP, "https://music.youtube.com/playlist?list=foo", 0)
@@ -178,6 +178,9 @@ ccc	NA	Third Track
 	if tracks[2].Duration != 0 {
 		t.Fatalf("tracks[2].Duration = %s, want zero (NA)", tracks[2].Duration)
 	}
+	if tracks[2].Provider != "Youtube" {
+		t.Fatalf("tracks[2].Provider = %q", tracks[2].Provider)
+	}
 	if tracks[2].URL != "https://www.youtube.com/watch?v=ccc" {
 		t.Fatalf("tracks[2].URL = %q", tracks[2].URL)
 	}
@@ -187,7 +190,7 @@ func TestEnumerateYTDLPPlaylistFallsBackToIDWhenTitleMissing(t *testing.T) {
 	t.Parallel()
 
 	// Two lines: one with only an id+missing duration, one fully populated.
-	ytDLP := writeFakeYTDLPPlaylist(t, "loneid\tNA\t\nidtwo\t120\tWith Title\n")
+	ytDLP := writeFakeYTDLPPlaylist(t, "NA\tNA\tYoutube\tloneid\tNA\t\nNA\tNA\tYoutube\tidtwo\t120\tWith Title\n")
 
 	tracks, err := enumerateYTDLPPlaylist(context.Background(), ytDLP, "https://example.com/playlist", 0)
 	if err != nil {
@@ -201,6 +204,48 @@ func TestEnumerateYTDLPPlaylistFallsBackToIDWhenTitleMissing(t *testing.T) {
 	}
 	if tracks[1].Title != "With Title" || tracks[1].Duration != 2*time.Minute {
 		t.Fatalf("tracks[1] = %+v", tracks[1])
+	}
+}
+
+func TestEnumerateYTDLPPlaylistUsesGenericWebpageURLs(t *testing.T) {
+	t.Parallel()
+
+	ytDLP := writeFakeYTDLPPlaylist(t, "https://example.com/watch/1\tNA\tExample	ex1\t42\tExternal Track\n")
+
+	tracks, err := enumerateYTDLPPlaylist(context.Background(), ytDLP, "https://example.com/playlist", 0)
+	if err != nil {
+		t.Fatalf("enumerate: %v", err)
+	}
+	if len(tracks) != 1 {
+		t.Fatalf("len(tracks) = %d, want 1", len(tracks))
+	}
+	if tracks[0].URL != "https://example.com/watch/1" {
+		t.Fatalf("URL = %q", tracks[0].URL)
+	}
+	if tracks[0].Provider != "Example" {
+		t.Fatalf("Provider = %q", tracks[0].Provider)
+	}
+}
+
+func TestEnumerateYTDLPPlaylistErrorsWithoutUsableNonYouTubeURL(t *testing.T) {
+	t.Parallel()
+
+	ytDLP := writeFakeYTDLPPlaylist(t, "NA\tlocal-id\tGeneric\tabc\t12\tNo URL\n")
+
+	_, err := enumerateYTDLPPlaylist(context.Background(), ytDLP, "https://example.com/playlist", 0)
+	if err == nil || !strings.Contains(err.Error(), "usable URL") {
+		t.Fatalf("expected usable URL error, got %v", err)
+	}
+}
+
+func TestLooksLikePlaylistURLDoesNotAutoDetectYoutuBeVideoLinks(t *testing.T) {
+	t.Parallel()
+
+	if looksLikePlaylistURL("https://youtu.be/abc123?list=PL123") {
+		t.Fatalf("youtu.be video link with list should stay single-track unless --playlist is set")
+	}
+	if !looksLikePlaylistURL("https://music.youtube.com/playlist?list=PL123") {
+		t.Fatalf("music.youtube.com playlist should auto-detect")
 	}
 }
 

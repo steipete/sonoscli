@@ -7,6 +7,7 @@
 - `sonos play-url` now starts a short-lived local stream proxy for YouTube, podcasts, radio streams, and other URLs, with `Sonos CLI` ICY metadata and automatic idle/EOF exit.
 
 ### Fixed
+- `sonos favorites open` now plays container favorites such as service-side albums and playlists by replacing the queue and starting at the first enqueued track. Thanks @bgrgicak.
 - `sonos smapi search|browse --open/--enqueue` now uses SoCo-compatible AppLink queue metadata for generic non-Spotify services such as QQ Music and NetEase Cloud Music. Thanks @huacius.
 
 ### Changed

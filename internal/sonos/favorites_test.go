@@ -80,6 +80,114 @@ func TestFavoritesListAndPlayFavorite(t *testing.T) {
 	}
 }
 
+func TestPlayFavoriteContainerClearsQueueAndPlaysFromFirstNewTrack(t *testing.T) {
+	tests := []struct {
+		name       string
+		uri        string
+		firstTrack string // FirstTrackNumberEnqueued returned by AddURIToQueue
+		wantSeek   string // expected Target in Seek
+	}{
+		{
+			name:       "cpcontainer-album",
+			uri:        "x-rincon-cpcontainer:1004004cALkSOiEcdiS48fO281HFIkLxnGnQMSdsLxKYBp6iR_eSUEuO?sid=284&flags=76&sn=2",
+			firstTrack: "5",
+			wantSeek:   "5",
+		},
+		{
+			name:       "cpcontainer-playlist",
+			uri:        "x-rincon-cpcontainer:1006206cSomePlaylist?sid=9&sn=1",
+			firstTrack: "1",
+			wantSeek:   "1",
+		},
+		{
+			name:       "missing-first-track-falls-back-to-1",
+			uri:        "x-rincon-cpcontainer:1006206cAnotherPlaylist?sid=9&sn=1",
+			firstTrack: "", // omitted by firmware
+			wantSeek:   "1",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			deviceDescriptionXML := `<?xml version="1.0"?>
+<root xmlns="urn:schemas-upnp-org:device-1-0">
+  <device>
+    <deviceType>urn:schemas-upnp-org:device:ZonePlayer:1</deviceType>
+    <roomName>Living Room</roomName>
+    <manufacturer>Sonos</manufacturer>
+    <UDN>uuid:RINCON_LIVING1400</UDN>
+  </device>
+</root>`
+			soapResp := func(action, inner string) string {
+				return `<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:` + action + `Response xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">` + inner + `</u:` + action + `Response></s:Body></s:Envelope>`
+			}
+
+			var actions []string
+			rt := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+				if r.Method == http.MethodGet && r.URL.Path == "/xml/device_description.xml" {
+					return httpResponse(200, deviceDescriptionXML), nil
+				}
+				action := r.Header.Get("SOAPACTION")
+				switch {
+				case strings.Contains(action, "AVTransport:1#RemoveAllTracksFromQueue"):
+					actions = append(actions, "RemoveAllTracksFromQueue")
+					return httpResponse(200, soapResp("RemoveAllTracksFromQueue", "")), nil
+				case strings.Contains(action, "AVTransport:1#AddURIToQueue"):
+					actions = append(actions, "AddURIToQueue")
+					inner := ""
+					if tc.firstTrack != "" {
+						inner = "<FirstTrackNumberEnqueued>" + tc.firstTrack + "</FirstTrackNumberEnqueued>"
+					}
+					return httpResponse(200, soapResp("AddURIToQueue", inner)), nil
+				case strings.Contains(action, "AVTransport:1#SetAVTransportURI"):
+					b, _ := io.ReadAll(r.Body)
+					_ = r.Body.Close()
+					if !strings.Contains(string(b), "x-rincon-queue:RINCON_LIVING1400#0") {
+						t.Fatalf("expected queue URI in SetAVTransportURI body: %s", string(b))
+					}
+					actions = append(actions, "SetAVTransportURI")
+					return httpResponse(200, soapResp("SetAVTransportURI", "")), nil
+				case strings.Contains(action, "AVTransport:1#Seek"):
+					b, _ := io.ReadAll(r.Body)
+					_ = r.Body.Close()
+					body := string(b)
+					if !strings.Contains(body, "<Unit>TRACK_NR</Unit>") || !strings.Contains(body, "<Target>"+tc.wantSeek+"</Target>") {
+						t.Fatalf("expected seek to track %s, body: %s", tc.wantSeek, body)
+					}
+					actions = append(actions, "Seek")
+					return httpResponse(200, soapResp("Seek", "")), nil
+				case strings.Contains(action, "AVTransport:1#Play"):
+					actions = append(actions, "Play")
+					return httpResponse(200, soapResp("Play", "")), nil
+				default:
+					t.Fatalf("unexpected SOAPACTION: %q", action)
+					return nil, nil
+				}
+			})
+
+			c := &Client{
+				IP: "192.0.2.1",
+				HTTP: &http.Client{
+					Timeout:   time.Second,
+					Transport: rt,
+				},
+			}
+
+			fav := DIDLItem{Title: tc.name, URI: tc.uri}
+			if err := c.PlayFavorite(context.Background(), fav); err != nil {
+				t.Fatalf("PlayFavorite: %v", err)
+			}
+
+			want := []string{"RemoveAllTracksFromQueue", "AddURIToQueue", "SetAVTransportURI", "Seek", "Play"}
+			if strings.Join(actions, ",") != strings.Join(want, ",") {
+				t.Fatalf("actions = %v, want %v", actions, want)
+			}
+		})
+	}
+}
+
 func TestFavoriteURIFromResMD(t *testing.T) {
 	f := DIDLItem{
 		ResMD: `<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"><item id="x"><res>http://example.com/stream</res></item></DIDL-Lite>`,

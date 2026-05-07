@@ -52,7 +52,16 @@ sonos open --name "Kitchen" spotify:album:0nrRP2bk19rLc0orkWPQk2
 sonos enqueue --name "Kitchen" spotify:playlist:37i9dQZF1DXcBWIGoYBM5M --next
 ```
 
-## 5. Group rooms
+## 5. Play a URL
+
+For YouTube, podcast links, radio streams, and odd formats, use the local proxy path. It resolves common media pages with `yt-dlp`, transcodes with `ffmpeg`, and exits when playback ends or goes idle:
+
+```bash
+sonos play-url --name "Kitchen" "https://www.youtube.com/watch?v=-n_rdQIVahw"
+sonos play-url --name "Kitchen" "https://example.com/podcast/episode.mp3"
+```
+
+## 6. Group rooms
 
 ```bash
 sonos group status
@@ -63,7 +72,7 @@ sonos group unjoin --name "Kitchen"
 sonos group dissolve --name "Living Room"
 ```
 
-## 6. Save and apply scenes
+## 7. Save and apply scenes
 
 A scene captures grouping plus per-room volume/mute. Save what's good now, restore it later.
 
@@ -73,7 +82,7 @@ sonos scene list
 sonos scene apply evening
 ```
 
-## 7. Watch live events
+## 8. Watch live events
 
 ```bash
 sonos watch --name "Kitchen"
@@ -81,7 +90,7 @@ sonos watch --name "Kitchen"
 
 Subscribes to AVTransport + RenderingControl and prints state changes as they arrive (Ctrl+C to stop).
 
-## 8. Search via Sonos (no Spotify credentials)
+## 9. Search via Sonos (no Spotify credentials)
 
 ```bash
 sonos smapi services

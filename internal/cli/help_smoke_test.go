@@ -21,7 +21,6 @@ func TestHelpWorksForAllCommands(t *testing.T) {
 
 	paths := allCommandPaths(root)
 	for _, path := range paths {
-		path := path
 		t.Run(strings.Join(path, " "), func(t *testing.T) {
 			// Use a fresh command tree per run to avoid cross-test state (flags, etc).
 			root, _, err := newRootCmd()

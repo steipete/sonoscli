@@ -50,7 +50,7 @@ func anySpeakerClient(ctx context.Context, flags *rootFlags) (*sonos.Client, err
 	c := newSonosClient(devs[0].IP, flags.Timeout)
 	top, err := c.GetTopology(ctx)
 	if err != nil {
-		return c, nil
+		return c, nil //nolint:nilerr // SMAPI only needs any reachable speaker; topology improves targeting when available.
 	}
 	mem, ok := top.FindByName(flags.Name)
 	if !ok {

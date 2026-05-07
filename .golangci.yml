@@ -9,6 +9,13 @@ linters:
   default: none
   enable:
     - errcheck
+    - bodyclose
+    - copyloopvar
+    - durationcheck
+    - errchkjson
+    - errorlint
+    - nilerr
+    - nilnesserr
     - gosec
     - govet
     - ineffassign
@@ -16,6 +23,8 @@ linters:
     - staticcheck
     - unconvert
     - unused
+    - usestdlibvars
+    - wastedassign
   exclusions:
     rules:
       - path: _test\.go

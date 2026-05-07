@@ -6,10 +6,11 @@
     "sonos": "./scripts/sonos.sh",
     "build": "mkdir -p bin && go build -o bin/sonos ./cmd/sonos",
     "test": "go test ./...",
+    "coverage": "make coverage",
     "format": "gofmt -w .",
     "format:check": "test -z \"$(gofmt -l .)\"",
     "lint": "golangci-lint run ./...",
+    "ci": "make ci",
     "docs:site": "node scripts/build-docs-site.mjs"
   }
 }
-

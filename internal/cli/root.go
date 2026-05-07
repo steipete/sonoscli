@@ -110,6 +110,7 @@ func newRootCmd() (*cobra.Command, *rootFlags, error) {
 	rootCmd.AddCommand(newPrevCmd(flags))
 	rootCmd.AddCommand(newOpenCmd(flags))
 	rootCmd.AddCommand(newEnqueueCmd(flags))
+	rootCmd.AddCommand(newPlayURLCmd(flags))
 	rootCmd.AddCommand(newSearchCmd(flags))
 	rootCmd.AddCommand(newAuthCmd(flags))
 	rootCmd.AddCommand(newSMAPICmd(flags))
@@ -123,6 +124,7 @@ func newRootCmd() (*cobra.Command, *rootFlags, error) {
 	rootCmd.AddCommand(newVolumeCmd(flags))
 	rootCmd.AddCommand(newMuteCmd(flags))
 	rootCmd.AddCommand(newWatchCmd(flags))
+	rootCmd.AddCommand(newStreamDaemonCmd(flags))
 
 	return rootCmd, flags, nil
 }
@@ -225,7 +227,7 @@ func resolveTargetCoordinatorIP(ctx context.Context, flags *rootFlags) (string, 
 		c := newSonosClient(flags.IP, flags.Timeout)
 		top, err := c.GetTopology(ctx)
 		if err != nil {
-			return flags.IP, nil
+			return flags.IP, nil //nolint:nilerr // best-effort coordinator lookup; explicit IP remains a valid fallback.
 		}
 		if coordIP, ok := top.CoordinatorIPFor(flags.IP); ok {
 			return coordIP, nil

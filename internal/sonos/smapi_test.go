@@ -108,7 +108,7 @@ func TestSMAPI_TokenRefresh(t *testing.T) {
 			if !strings.Contains(text, "<token>OLD</token>") {
 				t.Fatalf("expected OLD token in first request, got: %s", text)
 			}
-			w.WriteHeader(500)
+			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`<?xml version="1.0"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
   <s:Body>
@@ -130,7 +130,7 @@ func TestSMAPI_TokenRefresh(t *testing.T) {
 		if !strings.Contains(text, "<token>NEW</token>") || !strings.Contains(text, "<key>NEWK</key>") {
 			t.Fatalf("expected NEW token on retry, got: %s", text)
 		}
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`<?xml version="1.0"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
   <s:Body>
@@ -175,7 +175,7 @@ func TestSMAPI_Search_RequiresAuth(t *testing.T) {
 	var calls int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&calls, 1)
-		w.WriteHeader(500)
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer srv.Close()
 

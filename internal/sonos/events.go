@@ -103,7 +103,7 @@ func (c *Client) Unsubscribe(ctx context.Context, sub Subscription) error {
 		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode == 412 {
+	if resp.StatusCode == http.StatusPreconditionFailed {
 		// Precondition Failed: speaker rebooted or already unsubscribed. Treat as success.
 		return nil
 	}

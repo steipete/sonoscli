@@ -29,13 +29,23 @@ jobs:
         run: go vet ./...
 
       - name: Test (with coverage)
-        run: go test ./... -coverprofile=coverage.out
+        run: go test ./... -coverprofile=coverage.out -covermode=atomic
 
       - name: Coverage floor
         run: |
           total="$(go tool cover -func=coverage.out | tail -n 1 | awk '{print $3}' | sed 's/%//')"
           echo "total coverage: ${total}%"
-          awk -v cov="${total}" 'BEGIN { exit !(cov+0 >= 70.0) }' || { echo "coverage floor not met (min 70.0%)"; exit 1; }
+          awk -v cov="${total}" 'BEGIN { exit !(cov+0 >= 75.0) }' || { echo "coverage floor not met (min 75.0%)"; exit 1; }
+
+      - name: Stream proxy coverage floor
+        run: |
+          go test ./internal/streamproxy -coverprofile=streamproxy-coverage.out -covermode=atomic
+          total="$(go tool cover -func=streamproxy-coverage.out | tail -n 1 | awk '{print $3}' | sed 's/%//')"
+          echo "stream proxy coverage: ${total}%"
+          awk -v cov="${total}" 'BEGIN { exit !(cov+0 >= 85.0) }' || { echo "stream proxy coverage floor not met (min 85.0%)"; exit 1; }
+
+      - name: Race tests
+        run: go test -race ./...
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9.2.0

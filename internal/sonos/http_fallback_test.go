@@ -44,7 +44,7 @@ func TestFetchDeviceDescription_CurlFallbackOnTimeout(t *testing.T) {
   </device>
 </root>`
 		return &http.Response{
-			StatusCode: 200,
+			StatusCode: http.StatusOK,
 			Status:     "200 OK",
 			Header:     make(http.Header),
 			Body:       io.NopCloser(stringsReader(xml)),
@@ -100,7 +100,7 @@ func TestSoapCall_CurlFallbackOnTimeout(t *testing.T) {
   </s:Body>
 </s:Envelope>`
 		return &http.Response{
-			StatusCode: 200,
+			StatusCode: http.StatusOK,
 			Status:     "200 OK",
 			Header:     make(http.Header),
 			Body:       io.NopCloser(stringsReader(resp)),
@@ -129,7 +129,10 @@ func TestDoRequest_NoFallbackForPublicIP(t *testing.T) {
 
 	hc := &http.Client{Transport: timeoutRoundTripper{}, Timeout: 10 * time.Millisecond}
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://8.8.8.8/", nil)
-	_, err := doRequest(context.Background(), hc, req)
+	resp, err := doRequest(context.Background(), hc, req)
+	if resp != nil {
+		_ = resp.Body.Close()
+	}
 	if err == nil {
 		t.Fatalf("expected error")
 	}
@@ -146,7 +149,10 @@ func TestDoRequest_NoFallbackForNonTimeoutError(t *testing.T) {
 
 	hc := &http.Client{Transport: errorRoundTripper{err: errors.New("connection refused")}, Timeout: 10 * time.Millisecond}
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://192.168.0.21:1400/", nil)
-	_, err := doRequest(context.Background(), hc, req)
+	resp, err := doRequest(context.Background(), hc, req)
+	if resp != nil {
+		_ = resp.Body.Close()
+	}
 	if err == nil {
 		t.Fatalf("expected error")
 	}
@@ -159,7 +165,7 @@ func TestParseCurlResponse_ParsesHeadersAndBody(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("StatusCode: got %d, want %d", resp.StatusCode, 200)
 	}
 	if got := resp.Header.Get("Content-Type"); got != "text/plain" {
@@ -179,7 +185,7 @@ func TestParseCurlResponse_SkipsInterim100(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("StatusCode: got %d, want %d", resp.StatusCode, 200)
 	}
 	b, _ := io.ReadAll(resp.Body)

@@ -35,6 +35,27 @@ func BuildRadioMeta(title string) string {
 		`</item></DIDL-Lite>`
 }
 
+// BuildStreamProxyMeta builds DIDL metadata for sonoscli-managed proxy streams.
+// Sonos tends to treat x-rincon-mp3radio streams as station-like sources; the
+// stream's ICY metadata carries the currently playing title.
+func BuildStreamProxyMeta(title, provider string) string {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		title = "Sonos CLI"
+	}
+	provider = strings.TrimSpace(provider)
+	if provider == "" {
+		provider = "Sonos CLI"
+	}
+	return `<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">` +
+		`<item id="sonoscli:stream" parentID="sonoscli" restricted="true">` +
+		`<dc:title>` + xmlEscapeText(title) + `</dc:title>` +
+		`<dc:creator>` + xmlEscapeText(provider) + `</dc:creator>` +
+		`<upnp:class>object.item.audioItem.audioBroadcast</upnp:class>` +
+		`<desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/">Sonos CLI</desc>` +
+		`</item></DIDL-Lite>`
+}
+
 func (c *Client) PlayURI(ctx context.Context, uri, meta string) error {
 	if err := c.SetAVTransportURI(ctx, uri, meta); err != nil {
 		return err

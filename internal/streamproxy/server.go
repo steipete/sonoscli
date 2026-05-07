@@ -37,7 +37,12 @@ func (s *Server) Serve(ctx context.Context) error {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc(s.cfg.Path, s.handleStream)
+	for i, track := range s.cfg.Tracks {
+		mux.HandleFunc(track.Path, func(w http.ResponseWriter, r *http.Request) {
+			s.handleTrackStream(w, r, track)
+		})
+		log.Printf("stream proxy track %d path=%s source=%q title=%q provider=%q", i+1, track.Path, track.Source.URL, track.Source.DisplayTitle(), track.Source.DisplayProvider())
+	}
 	mux.HandleFunc(HealthPath, s.handleHealth)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
@@ -54,7 +59,7 @@ func (s *Server) Serve(ctx context.Context) error {
 		return err
 	}
 	defer func() { _ = ln.Close() }()
-	log.Printf("stream proxy listening on %s path=%s source=%q title=%q provider=%q", ln.Addr(), s.cfg.Path, s.cfg.Source.URL, s.cfg.Source.DisplayTitle(), s.cfg.Source.DisplayProvider())
+	log.Printf("stream proxy listening on %s tracks=%d", ln.Addr(), len(s.cfg.Tracks))
 
 	go s.shutdownWhenDone(ctx, srv)
 
@@ -129,9 +134,13 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
+	s.handleTrackStream(w, r, Track{Path: s.cfg.Path, Source: s.cfg.Source})
+}
+
+func (s *Server) handleTrackStream(w http.ResponseWriter, r *http.Request, track Track) {
 	wantICY := requestWantsICY(r)
 	if r.Method == http.MethodHead {
-		s.writeHeaders(w, wantICY)
+		s.writeHeaders(w, track.Source, wantICY)
 		return
 	}
 	if r.Method != http.MethodGet {
@@ -151,9 +160,9 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 
 	var ytCmd *exec.Cmd
 	var cmd *exec.Cmd
-	if s.cfg.Source.UseYTDLP {
-		log.Printf("client %q requested stream; piping yt-dlp source=%q", r.RemoteAddr, s.cfg.Source.URL) //nolint:gosec // diagnostic log only; values are quoted.
-		ytCmd = s.ytDLPDownloadCommand(r.Context(), s.cfg.Source.URL)
+	if track.Source.UseYTDLP {
+		log.Printf("client %q requested %s; piping yt-dlp source=%q", r.RemoteAddr, track.Path, track.Source.URL) //nolint:gosec // diagnostic log only; values are quoted.
+		ytCmd = s.ytDLPDownloadCommand(r.Context(), track.Source.URL)
 		ytStdout, err := ytCmd.StdoutPipe()
 		if err != nil {
 			log.Printf("yt-dlp stdout pipe failed: %v", err)
@@ -169,11 +178,11 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 		cmd = s.ffmpegStdinCommand(r.Context())
 		cmd.Stdin = ytStdout
 	} else {
-		streamURL := strings.TrimSpace(s.cfg.Source.InputURL)
+		streamURL := strings.TrimSpace(track.Source.InputURL)
 		if streamURL == "" {
-			streamURL = strings.TrimSpace(s.cfg.Source.URL)
+			streamURL = strings.TrimSpace(track.Source.URL)
 		}
-		log.Printf("client %q requested stream; resolved input=%q", r.RemoteAddr, streamURL) //nolint:gosec // diagnostic log only; values are quoted.
+		log.Printf("client %q requested %s; resolved input=%q", r.RemoteAddr, track.Path, streamURL) //nolint:gosec // diagnostic log only; values are quoted.
 		cmd = s.ffmpegCommand(r.Context(), streamURL)
 	}
 
@@ -215,16 +224,16 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer func() { _ = conn.Close() }()
-		s.writeRawHeaders(rw, wantICY)
+		s.writeRawHeaders(rw, track.Source, wantICY)
 		writer = conn
 	} else {
-		s.writeHeaders(w, wantICY)
+		s.writeHeaders(w, track.Source, wantICY)
 	}
 
 	var naturalEOF bool
 	var copyErr error
 	if wantICY {
-		naturalEOF, copyErr = writeICY(writer, stdout, s.cfg.Source.DisplayTitle(), s.cfg.Source.URL)
+		naturalEOF, copyErr = writeICY(writer, stdout, track.Source.DisplayTitle(), track.Source.URL)
 	} else {
 		_, copyErr = io.Copy(writer, stdout)
 		naturalEOF = copyErr == nil
@@ -232,8 +241,10 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	if copyErr != nil {
 		log.Printf("client %q stream copy failed: %v", r.RemoteAddr, copyErr) //nolint:gosec // diagnostic log only; values are quoted.
 	}
-	log.Printf("client %q stream ended naturalEOF=%v", r.RemoteAddr, naturalEOF) //nolint:gosec // diagnostic log only; values are quoted.
-	if naturalEOF {
+	log.Printf("client %q stream ended path=%s naturalEOF=%v", r.RemoteAddr, track.Path, naturalEOF) //nolint:gosec // diagnostic log only; values are quoted.
+	// In multi-track mode, rely on the idle-timeout shutdown — the daemon
+	// must keep serving until every queued track has been played.
+	if naturalEOF && !s.cfg.MultiTrack() {
 		s.once.Do(func() { close(s.done) })
 	}
 }

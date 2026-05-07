@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- `sonos play-url-playlist <url>` plays a YouTube/yt-dlp playlist URL by enumerating every track, starting one local stream proxy that exposes one HTTP path per track, and replacing the speaker's queue with the resolved track URLs (clear → `AddURIToQueue` × N → play from track 1).
+
 ### Fixed
 - `sonos play-url` now plays YouTube videos that only expose HLS audio formats (e.g. live/DVR-style or music recordings without progressive `itag 140`). The proxy now pipes `yt-dlp` directly into `ffmpeg` for `yt-dlp` sources, so YouTube's HLS segments are decoded by `yt-dlp`'s `hlsnative` downloader instead of `ffmpeg`'s HLS demuxer (which rejects YouTube's mismatched segment extensions). Thanks @bgrgicak.
 

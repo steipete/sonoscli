@@ -184,6 +184,12 @@ func buildShareDIDL(itemID, title, itemClass string, serviceNum int) string {
 	)
 }
 
+// PlayFromQueueTrack binds the speaker's AVTransport to its queue and starts
+// playback at the given 1-based track number.
+func (c *Client) PlayFromQueueTrack(ctx context.Context, oneBasedTrackNumber int) error {
+	return c.playFromQueueTrack(ctx, oneBasedTrackNumber)
+}
+
 func (c *Client) playFromQueueTrack(ctx context.Context, oneBasedTrackNumber int) error {
 	dd, err := c.GetDeviceDescription(ctx)
 	if err != nil {

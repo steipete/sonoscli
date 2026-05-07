@@ -264,7 +264,7 @@ func TestWriteRawHeadersSanitizesValues(t *testing.T) {
 		Bitrate: "192k",
 	})
 
-	srv.writeRawHeaders(rw, true)
+	srv.writeRawHeaders(rw, srv.cfg.Source, true)
 
 	got := buf.String()
 	if !strings.Contains(got, "HTTP/1.0 200 OK\r\n") || !strings.Contains(got, "icy-metaint: 8192\r\n") {
@@ -387,6 +387,60 @@ func TestServeHandlesStreamOverHTTP(t *testing.T) {
 	}
 	if got := strings.TrimSuffix(string(body), "\n"); got != "served body" {
 		t.Fatalf("body = %q, want %q", got, "served body")
+	}
+
+	cancel()
+	select {
+	case <-errCh:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("server did not stop")
+	}
+}
+
+func TestServeHandlesMultipleTracks(t *testing.T) {
+	t.Parallel()
+
+	ffmpeg := fakeFFmpeg(t, "track body")
+	port := freeTestTCPPort(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	srv := NewServer(ServerConfig{
+		Addr: "127.0.0.1:" + port,
+		Tracks: []Track{
+			{Path: "/t1.mp3", Source: Source{URL: "https://example.com/a", InputURL: "https://example.com/a", Title: "A"}},
+			{Path: "/t2.mp3", Source: Source{URL: "https://example.com/b", InputURL: "https://example.com/b", Title: "B"}},
+		},
+		FFmpegPath:  ffmpeg,
+		IdleTimeout: time.Second,
+	})
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- srv.Serve(ctx)
+	}()
+
+	for _, tp := range []string{"/t1.mp3", "/t2.mp3"} {
+		streamURL := "http://127.0.0.1:" + port + tp
+		deadline := time.Now().Add(2 * time.Second)
+		var body []byte
+		for {
+			resp, err := http.Get(streamURL) //nolint:gosec // local test server URL.
+			if err == nil && resp.StatusCode == http.StatusOK {
+				body, _ = io.ReadAll(resp.Body)
+				_ = resp.Body.Close()
+				break
+			}
+			if err == nil {
+				_ = resp.Body.Close()
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("could not fetch %s: %v", tp, err)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		if got := strings.TrimSuffix(string(body), "\n"); got != "track body" {
+			t.Fatalf("body for %s = %q", tp, got)
+		}
 	}
 
 	cancel()

@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- `sonos play-url` now plays YouTube videos that only expose HLS audio formats (e.g. live/DVR-style or music recordings without progressive `itag 140`). The proxy now pipes `yt-dlp` directly into `ffmpeg` for `yt-dlp` sources, so YouTube's HLS segments are decoded by `yt-dlp`'s `hlsnative` downloader instead of `ffmpeg`'s HLS demuxer (which rejects YouTube's mismatched segment extensions). Thanks @bgrgicak.
+
 ## [0.3.0] - 2026-05-07
 
 ### Added

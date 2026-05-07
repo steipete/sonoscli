@@ -128,6 +128,29 @@ func TestHandleStreamCopiesFFmpegOutput(t *testing.T) {
 	}
 }
 
+func TestHandleStreamPipesYTDLPThroughFFmpeg(t *testing.T) {
+	t.Parallel()
+
+	ffmpeg := fakeFFmpeg(t, "piped output")
+	ytDLP := fakeYTDLP(t)
+	srv := NewServer(ServerConfig{
+		Source:     Source{URL: "https://example.com/page", UseYTDLP: true},
+		FFmpegPath: ffmpeg,
+		YTDLPPath:  ytDLP,
+	})
+	req := httptest.NewRequest(http.MethodGet, "/stream.mp3", nil)
+	rec := httptest.NewRecorder()
+
+	srv.handleStream(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if got := strings.TrimSuffix(rec.Body.String(), "\n"); got != "piped output" {
+		t.Fatalf("body = %q, want %q", got, "piped output")
+	}
+}
+
 func TestHandleStreamErrors(t *testing.T) {
 	t.Parallel()
 

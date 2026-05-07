@@ -37,4 +37,5 @@ sonos favorites open --name "Kitchen" --index 3
 ## How it works
 
 - `list` calls `ContentDirectory.Browse(ObjectID=FV:2)` and parses the DIDL-Lite favorites.
-- `open` resolves the favorite, sets `AVTransport.SetAVTransportURI` with the favorite's URI + metadata, then calls `Play`.
+- `open` resolves the favorite. Stream and track favorites are sent directly with `AVTransport.SetAVTransportURI`, then `Play`.
+- Container favorites such as service-side albums and playlists use the Sonos queue path: clear the queue, enqueue the container with `AddURIToQueue`, switch playback to the queue, seek to the first enqueued track, then `Play`.

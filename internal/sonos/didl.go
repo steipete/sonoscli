@@ -3,6 +3,7 @@ package sonos
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"io"
 	"strings"
 )
@@ -30,7 +31,7 @@ func ParseDIDLItems(didlXML string) ([]DIDLItem, error) {
 	for {
 		tok, err := dec.Token()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return items, nil
 			}
 			return nil, err

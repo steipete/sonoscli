@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0] - 2026-05-07
+
+### Added
+- `sonos play youtube` now resolves YouTube URLs with `yt-dlp` and plays the direct audio stream on Sonos.
+- `sonos play-url` now starts a short-lived local stream proxy for YouTube, podcasts, radio streams, and other URLs, with `Sonos CLI` ICY metadata and automatic idle/EOF exit.
+
+### Changed
+- CI now runs coverage with atomic counters, enforces a stricter whole-repo coverage floor, and enforces an 85% coverage floor for the new stream proxy package.
+- Go linting now enables stricter correctness linters for response-body handling, error wrapping, nil-error mistakes, wasted assignments, and standard-library constant usage.
+
 ## [0.2.0] - 2026-05-06
 
 ### Added

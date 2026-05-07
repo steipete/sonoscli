@@ -3,6 +3,7 @@ package sonos
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"html"
 	"io"
 	"strings"
@@ -17,7 +18,7 @@ func ParseEvent(payload []byte) (map[string]string, error) {
 	for {
 		tok, err := dec.Token()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return out, nil
 			}
 			return nil, err

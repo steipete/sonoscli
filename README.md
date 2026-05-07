@@ -15,6 +15,8 @@
   - Enqueue/play Spotify share links or canonical `spotify:<type>:<id>` URIs (no Spotify credentials required).
   - Search Spotify via **SMAPI** (Sonos Music API; uses your linked service in Sonos).
   - Optional Spotify Web API search (client credentials) if you want it.
+- **YouTube handoff**: resolve a YouTube URL with `yt-dlp` and play the direct audio stream on Sonos.
+- **Smart URL streaming**: `play-url` runs a short-lived local proxy for YouTube, podcasts, radio streams, and other URLs.
 - **Live events**: `watch` subscribes to AVTransport + RenderingControl and prints changes.
 - **Scriptable output**: `--format plain|json|tsv` plus `--debug` tracing.
 
@@ -36,6 +38,14 @@ Spotify search (recommended, no Spotify Web API credentials):
 Spotify search via Spotify Web API (optional):
 - If you want `sonos search spotify`, you’ll need a Spotify Web API app (client credentials).
   Set `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` (or pass `--client-id/--client-secret`).
+
+YouTube:
+- Install `yt-dlp` if you want `sonos play youtube`.
+- Sonos plays the resolved temporary audio stream directly; long videos may expire and need resolving again.
+
+Smart URL streaming:
+- Install `yt-dlp` and `ffmpeg` for `sonos play-url`.
+- `play-url` resolves common media pages, transcodes to a local MP3 stream, sends `Sonos CLI` stream metadata, and exits the proxy when playback ends or goes idle.
 
 ## Install / build
 
@@ -113,7 +123,7 @@ Note: this starts a local callback server for UPnP events; your OS firewall may 
 Run `sonos --help` for the full list. Most commonly used:
 
 - Discovery & status: `discover`, `status`/`now`, `watch`
-- Playback: `play`, `pause`, `stop`, `next`, `prev`, `open`, `enqueue`, `play-uri`, `linein`, `tv`
+- Playback: `play`, `pause`, `stop`, `next`, `prev`, `open`, `enqueue`, `play-url`, `play-uri`, `linein`, `tv`
 - Grouping: `group status`, `group join`, `group unjoin`, `group solo`, `group party`, `group dissolve`
 - Queue: `queue list`, `queue play`, `queue remove`, `queue clear`
 - Favorites: `favorites list`, `favorites open`
@@ -192,6 +202,13 @@ Play an arbitrary URI:
 
 ```bash
 ./sonos play-uri --name "Kitchen" "https://example.com/stream.mp3"
+```
+
+Play a URL through the Sonos-safe local proxy (requires `ffmpeg`; `yt-dlp` for YouTube and media pages):
+
+```bash
+./sonos play-url --name "Kitchen" "https://www.youtube.com/watch?v=-n_rdQIVahw"
+./sonos play-url --name "Kitchen" "https://example.com/podcast/episode.mp3"
 ```
 
 Force radio-style playback (useful for station-like streams):

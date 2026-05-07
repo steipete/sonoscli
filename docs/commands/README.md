@@ -30,7 +30,9 @@ Global flags apply to every command:
 - [`sonos stop`](sonos-stop.md)
 - [`sonos next`](sonos-next.md)
 - [`sonos prev`](sonos-prev.md)
+- [`sonos play-url`](sonos-play-url.md)
 - [`sonos play-uri`](sonos-play-uri.md)
+- [`sonos play youtube`](sonos-play-youtube.md)
 - [`sonos linein`](sonos-linein.md)
 - [`sonos tv`](sonos-tv.md)
 

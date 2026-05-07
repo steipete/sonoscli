@@ -41,7 +41,7 @@ func doRequest(ctx context.Context, httpClient *http.Client, req *http.Request) 
 	curlResp, curlErr := curlRoundTripFunc(ctx, req, timeout)
 	if curlErr != nil {
 		// Preserve the original error, but include curl's failure as context.
-		return nil, fmt.Errorf("%w (curl fallback failed: %v)", err, curlErr)
+		return nil, fmt.Errorf("%w (curl fallback failed: %w)", err, curlErr)
 	}
 	return curlResp, nil
 }

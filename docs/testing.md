@@ -21,12 +21,12 @@ Run from repo root:
 - `pnpm -s test`
 - `pnpm -s lint`
 - `make ci`
-- Optional: `go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out | tail -n 1`
+- Optional: `go test ./... -coverprofile=coverage.out -covermode=atomic && go tool cover -func=coverage.out | tail -n 1`
 
 Expected:
 - All commands exit `0`
-- CI should match `.github/workflows/ci.yml` (`gofmt`, `go vet`, `go test`, `golangci-lint`)
-- CI enforces a minimum total coverage of `70%` (statement coverage across `./...`).
+- CI should match `.github/workflows/ci.yml` (`gofmt`, coverage, `golangci-lint`, race tests, `go vet`)
+- CI enforces a minimum total coverage of `75%` (statement coverage across `./...`) and a focused `85%` floor for the stream proxy package.
 
 ## Live network test plan (manual)
 

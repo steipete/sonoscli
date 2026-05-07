@@ -17,7 +17,7 @@ func TestStopOrNoopTreats701AsSuccess(t *testing.T) {
 		if strings.Contains(action, "#Stop") {
 			body := soapFaultWithUPnPCode("701")
 			return &http.Response{
-				StatusCode: 500,
+				StatusCode: http.StatusInternalServerError,
 				Status:     "500 Internal Server Error",
 				Body:       io.NopCloser(strings.NewReader(body)),
 				Header:     make(http.Header),

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -49,10 +50,10 @@ func soapCall(ctx context.Context, httpClient *http.Client, endpointURL, service
 	}
 	slog.Debug("soap: response", "action", action, "endpoint", endpointURL, "status", resp.StatusCode, "bytes", len(raw), "elapsed", time.Since(start).String()) //nolint:gosec // Debug log for local device endpoint diagnostics.
 
-	if resp.StatusCode == 200 {
+	if resp.StatusCode == http.StatusOK {
 		return parseSOAPResponse(raw)
 	}
-	if resp.StatusCode == 500 {
+	if resp.StatusCode == http.StatusInternalServerError {
 		if upnpErr, ok := parseUPnPError(raw); ok {
 			return nil, upnpErr
 		}
@@ -109,7 +110,7 @@ func parseSOAPResponse(raw []byte) (map[string]string, error) {
 	for {
 		tok, err := dec.Token()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return out, nil
 			}
 			return nil, err

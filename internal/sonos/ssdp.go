@@ -79,7 +79,8 @@ Loop:
 		_ = conn.SetReadDeadline(ssdpNow().Add(200 * time.Millisecond))
 		n, _, err := conn.ReadFromUDP(buf)
 		if err != nil {
-			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+			var nerr net.Error
+			if errors.As(err, &nerr) && nerr.Timeout() {
 				continue
 			}
 			// Some platforms can return spurious read errors while sockets are closing.

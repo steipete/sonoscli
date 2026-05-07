@@ -39,7 +39,7 @@ func TestPreviousOrRestartFallsBackToSeekOn711(t *testing.T) {
 		case strings.Contains(action, "#Previous"):
 			body := soapFaultWithUPnPCode("711")
 			return &http.Response{
-				StatusCode: 500,
+				StatusCode: http.StatusInternalServerError,
 				Status:     "500 Internal Server Error",
 				Body:       io.NopCloser(strings.NewReader(body)),
 				Header:     make(http.Header),
@@ -52,7 +52,7 @@ func TestPreviousOrRestartFallsBackToSeekOn711(t *testing.T) {
 			}
 			body := okSOAPResponse("Seek")
 			return &http.Response{
-				StatusCode: 200,
+				StatusCode: http.StatusOK,
 				Status:     "200 OK",
 				Body:       io.NopCloser(strings.NewReader(body)),
 				Header:     make(http.Header),
@@ -84,7 +84,7 @@ func TestPreviousOrRestartReturnsErrorForOtherCodes(t *testing.T) {
 		if strings.Contains(action, "#Previous") {
 			body := soapFaultWithUPnPCode("710")
 			return &http.Response{
-				StatusCode: 500,
+				StatusCode: http.StatusInternalServerError,
 				Status:     "500 Internal Server Error",
 				Body:       io.NopCloser(strings.NewReader(body)),
 				Header:     make(http.Header),

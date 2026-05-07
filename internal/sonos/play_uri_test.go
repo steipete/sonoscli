@@ -34,6 +34,18 @@ func TestBuildRadioMeta(t *testing.T) {
 	}
 }
 
+func TestBuildStreamProxyMeta(t *testing.T) {
+	t.Parallel()
+
+	meta := BuildStreamProxyMeta("Sonos CLI", "YouTube")
+	if meta == "" {
+		t.Fatalf("expected meta")
+	}
+	if !containsAll(meta, []string{"Sonos CLI", "YouTube", "object.item.audioItem.audioBroadcast"}) {
+		t.Fatalf("unexpected meta: %s", meta)
+	}
+}
+
 func containsAll(s string, subs []string) bool {
 	for _, sub := range subs {
 		if !strings.Contains(s, sub) {

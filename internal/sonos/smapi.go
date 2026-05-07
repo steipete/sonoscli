@@ -515,10 +515,10 @@ func (c *SMAPIClient) smapiCall(ctx context.Context, method string, args map[str
 		return nil, err
 	}
 
-	if resp.StatusCode == 200 {
+	if resp.StatusCode == http.StatusOK {
 		return extractSOAPBodyFirstChild(raw)
 	}
-	if resp.StatusCode == 500 {
+	if resp.StatusCode == http.StatusInternalServerError {
 		fault, ok := parseSOAPFault(raw)
 		if !ok {
 			return nil, fmt.Errorf("smapi soap http %s", resp.Status)
@@ -552,10 +552,10 @@ func (c *SMAPIClient) smapiCall(ctx context.Context, method string, args map[str
 			if err != nil {
 				return nil, err
 			}
-			if resp2.StatusCode == 200 {
+			if resp2.StatusCode == http.StatusOK {
 				return extractSOAPBodyFirstChild(raw2)
 			}
-			if resp2.StatusCode == 500 {
+			if resp2.StatusCode == http.StatusInternalServerError {
 				if fault2, ok := parseSOAPFault(raw2); ok {
 					return nil, fmt.Errorf("smapi fault after refresh: %s: %s", fault2.FaultCode, fault2.FaultString)
 				}
@@ -668,7 +668,7 @@ func extractSOAPBodyFirstChild(raw []byte) ([]byte, error) {
 	for {
 		tok, err := dec.Token()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, err

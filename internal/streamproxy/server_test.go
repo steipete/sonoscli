@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -417,6 +418,16 @@ EOF
 `
 	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
 		t.Fatalf("write fake ffmpeg: %v", err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for {
+		if err := exec.Command(path, "-version").Run(); err == nil { //nolint:gosec // test-owned helper script.
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("fake ffmpeg did not become executable")
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 	return path
 }

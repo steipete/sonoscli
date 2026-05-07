@@ -77,6 +77,10 @@ sonos smapi browse --service "Spotify" --id root --recursive
 | `--open` | off | Play selected item. |
 | `--enqueue` | off | Enqueue selected item. |
 
+## Playback compatibility
+
+For Spotify results, `sonoscli` uses the dedicated Spotify queue URI forms. For other SMAPI services, `--open` and `--enqueue` use the generic Sonos queue path with SoCo-compatible metadata. This is required by some AppLink services, including QQ Music and NetEase Cloud Music.
+
 ## Authenticating a service
 
 Some services need a one-time DeviceLink/AppLink flow before SMAPI search works. See [`sonos auth smapi`](sonos-auth-smapi.md).

@@ -38,6 +38,8 @@ To search-and-play in one step:
 sonos play spotify --name "Kitchen" --category albums "kind of blue"
 ```
 
+For non-Spotify services, `--open` and `--enqueue` use Sonos queue metadata compatible with SoCo's generic music-service path. This is the path needed by AppLink services such as QQ Music and NetEase Cloud Music once the service is authenticated.
+
 ### One-time auth for some services
 
 A few services (Spotify is a notable one) require a DeviceLink/AppLink handshake before SMAPI search works — even if the service is already playable in the Sonos app. Run:

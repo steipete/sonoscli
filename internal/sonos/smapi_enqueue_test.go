@@ -86,23 +86,26 @@ func TestSMAPIEnqueueHelpers(t *testing.T) {
 	if got := escapeSMAPIItemID("a b+c"); got != "a%20b%2Bc" {
 		t.Fatalf("escaped id = %q", got)
 	}
-	if got := smapiItemClass("station"); got != "object.item.audioItem.audioBroadcast" {
-		t.Fatalf("station class = %q", got)
+	if got := smapiDIDLItemID("SONG:449205:ST"); got != "0fffffffSONG%3A449205%3AST" {
+		t.Fatalf("DIDL item id = %q", got)
 	}
-	if got := smapiItemClass("playlist"); got != "object.container.playlistContainer" {
-		t.Fatalf("playlist class = %q", got)
+	if got := smapiEnqueuedURI("0fffffffSONG%3A449205%3AST", "track", "23"); got != "soco://0fffffffSONG%253A449205%253AST?sid=23&sn=0" {
+		t.Fatalf("track enqueued URI = %q", got)
 	}
-	if got := smapiItemClass("track"); got != "object.item.audioItem.musicTrack" {
-		t.Fatalf("track class = %q", got)
+	if got := smapiEnqueuedURI("0fffffffPLAYLIST%3A42", "playlist", "23"); got != "x-rincon-cpcontainer:0fffffffPLAYLIST%3A42" {
+		t.Fatalf("playlist enqueued URI = %q", got)
 	}
 	if got := smapiServiceDesc(MusicServiceDescriptor{ID: "5"}); got != "SA_RINCON1287_" {
 		t.Fatalf("service desc = %q", got)
 	}
-	if got := smapiServiceDesc(MusicServiceDescriptor{ID: "svc", ServiceType: "99", Auth: MusicServiceAuthAppLink}); got != "SA_RINCON99_X_#Svc99-0-Token" {
-		t.Fatalf("authed service desc = %q", got)
+	if got := smapiServiceDesc(MusicServiceDescriptor{ID: "svc", ServiceType: "99", Auth: MusicServiceAuthAppLink}); got != "SA_RINCON99_" {
+		t.Fatalf("AppLink service desc = %q", got)
 	}
-	didl := buildSMAPIDIDL(`id&`, `title<`, `class>`, `desc"`)
-	for _, want := range []string{"id&amp;", "title&lt;", "class&gt;", "desc&#34;"} {
+	if got := smapiServiceDesc(MusicServiceDescriptor{ID: "svc", ServiceType: "99", Auth: MusicServiceAuthDeviceLink}); got != "SA_RINCON99_X_#Svc99-0-Token" {
+		t.Fatalf("DeviceLink service desc = %q", got)
+	}
+	didl := buildSMAPIDIDL(`id&`, `soco://id?a=1&b=2`, `desc"`)
+	for _, want := range []string{"id&amp;", "soco://id?a=1&amp;b=2", "object.item", "desc&#34;"} {
 		if !strings.Contains(didl, want) {
 			t.Fatalf("DIDL missing %q: %s", want, didl)
 		}

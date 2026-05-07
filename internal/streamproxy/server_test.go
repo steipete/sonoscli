@@ -254,6 +254,39 @@ func TestHandleStreamWritesICYMetadata(t *testing.T) {
 	}
 }
 
+func TestHandleStreamFiniteTrackIgnoresICYMetadataRequest(t *testing.T) {
+	t.Parallel()
+
+	ffmpeg := fakeFFmpeg(t, "finite body")
+	srv := NewServer(ServerConfig{
+		Source: Source{
+			URL:             "https://example.com/track.mp3",
+			InputURL:        "https://example.com/track.mp3",
+			Title:           "Finite",
+			DurationSeconds: 60,
+		},
+		FFmpegPath: ffmpeg,
+	})
+	req := httptest.NewRequest(http.MethodGet, "/stream.mp3", nil)
+	req.Header.Set("Icy-MetaData", "1")
+	rec := httptest.NewRecorder()
+
+	srv.handleStream(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if got := rec.Result().Header.Get("icy-metaint"); got != "" {
+		t.Fatalf("icy-metaint = %q, want empty", got)
+	}
+	if bytes.Contains(rec.Body.Bytes(), []byte("StreamTitle=")) {
+		t.Fatalf("finite track body was ICY-framed: %q", rec.Body.String())
+	}
+	if got := rec.Body.String(); got != "finite body\n" {
+		t.Fatalf("body = %q, want raw ffmpeg output", got)
+	}
+}
+
 func TestWriteRawHeadersSanitizesValues(t *testing.T) {
 	t.Parallel()
 
@@ -469,7 +502,7 @@ func TestShutdownWaitsForAllMultiTrackCompletions(t *testing.T) {
 	}()
 
 	// With only one of two tracks completed, the loop must NOT shut down
-	// even after the idle timer fires repeatedly.
+	// while the incomplete-playlist grace is still active.
 	srv.mu.Lock()
 	srv.completed["/t1.mp3"] = true
 	srv.mu.Unlock()
@@ -477,7 +510,7 @@ func TestShutdownWaitsForAllMultiTrackCompletions(t *testing.T) {
 	select {
 	case <-done:
 		t.Fatalf("daemon shut down with unfinished tracks")
-	case <-time.After(50 * time.Millisecond):
+	case <-time.After(1100 * time.Millisecond):
 	}
 
 	// Once every track has completed, the next idle tick should release it.
@@ -489,6 +522,35 @@ func TestShutdownWaitsForAllMultiTrackCompletions(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatalf("daemon did not shut down after all tracks completed")
+	}
+}
+
+func TestShutdownReapsIncompleteMultiTrackAfterIdleGrace(t *testing.T) {
+	t.Parallel()
+
+	srv := NewServer(ServerConfig{
+		IdleTimeout: time.Millisecond,
+		Tracks: []Track{
+			{Path: "/t1.mp3", Source: Source{URL: "https://example.com/a"}},
+			{Path: "/t2.mp3", Source: Source{URL: "https://example.com/b"}},
+		},
+	})
+	srv.mu.Lock()
+	srv.completed["/t1.mp3"] = true
+	srv.lastActive = time.Now().Add(-srv.cfg.incompletePlaylistIdleTimeout() - time.Second)
+	srv.mu.Unlock()
+
+	httpSrv := &http.Server{} //nolint:gosec // test-only server, never listens.
+	done := make(chan struct{})
+	go func() {
+		srv.shutdownWhenDone(context.Background(), httpSrv)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("daemon did not reap incomplete idle playlist")
 	}
 }
 

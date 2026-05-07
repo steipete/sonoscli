@@ -15,21 +15,23 @@ import (
 )
 
 type Server struct {
-	cfg       ServerConfig
-	mu        sync.Mutex
-	active    int
-	served    bool
-	completed map[string]bool
-	done      chan struct{}
-	once      sync.Once
+	cfg        ServerConfig
+	mu         sync.Mutex
+	active     int
+	served     bool
+	lastActive time.Time
+	completed  map[string]bool
+	done       chan struct{}
+	once       sync.Once
 }
 
 func NewServer(cfg ServerConfig) *Server {
 	cfg = cfg.withDefaults()
 	return &Server{
-		cfg:       cfg,
-		completed: make(map[string]bool),
-		done:      make(chan struct{}),
+		cfg:        cfg,
+		lastActive: time.Now(),
+		completed:  make(map[string]bool),
+		done:       make(chan struct{}),
 	}
 }
 
@@ -98,7 +100,6 @@ func (s *Server) Preflight(ctx context.Context) error {
 func (s *Server) shutdownWhenDone(ctx context.Context, srv *http.Server) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
-	lastIdle := time.Now()
 	for {
 		select {
 		case <-ctx.Done():
@@ -116,9 +117,9 @@ func (s *Server) shutdownWhenDone(ctx context.Context, srv *http.Server) {
 			active := s.active
 			multi := s.cfg.MultiTrack()
 			allDone := s.allTracksCompleted()
+			idleFor := time.Since(s.lastActive)
 			s.mu.Unlock()
 			if active > 0 {
-				lastIdle = time.Now()
 				continue
 			}
 			// In multi-track mode, never shut down until every configured
@@ -126,11 +127,12 @@ func (s *Server) shutdownWhenDone(ctx context.Context, srv *http.Server) {
 			// pre-fetches upcoming queue items briefly to determine size
 			// and disconnects, then refetches them later when it actually
 			// plays them — if we shut down between those events, Sonos
-			// gets a connection refused on the second fetch and stops.
-			if multi && !allDone {
+			// gets a connection refused on the second fetch and stops. Bound
+			// that grace so stopped/abandoned playlists are still reaped.
+			if multi && !allDone && idleFor < s.cfg.incompletePlaylistIdleTimeout() {
 				continue
 			}
-			if time.Since(lastIdle) >= s.cfg.IdleTimeout {
+			if idleFor >= s.cfg.IdleTimeout {
 				shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 				_ = srv.Shutdown(shutdownCtx)
 				cancel()
@@ -159,8 +161,9 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleTrackStream(w http.ResponseWriter, r *http.Request, track Track) {
 	wantICY := requestWantsICY(r)
+	streamICY := wantICY && !track.Source.IsFiniteTrack()
 	if r.Method == http.MethodHead {
-		s.writeHeaders(w, track.Source, wantICY)
+		s.writeHeaders(w, track.Source, streamICY)
 		return
 	}
 	if r.Method != http.MethodGet {
@@ -171,10 +174,12 @@ func (s *Server) handleTrackStream(w http.ResponseWriter, r *http.Request, track
 	s.mu.Lock()
 	s.active++
 	s.served = true
+	s.lastActive = time.Now()
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
 		s.active--
+		s.lastActive = time.Now()
 		s.mu.Unlock()
 	}()
 
@@ -244,15 +249,15 @@ func (s *Server) handleTrackStream(w http.ResponseWriter, r *http.Request, track
 			return
 		}
 		defer func() { _ = conn.Close() }()
-		s.writeRawHeaders(rw, track.Source, wantICY)
+		s.writeRawHeaders(rw, track.Source, streamICY)
 		writer = conn
 	} else {
-		s.writeHeaders(w, track.Source, wantICY)
+		s.writeHeaders(w, track.Source, streamICY)
 	}
 
 	var naturalEOF bool
 	var copyErr error
-	if wantICY {
+	if streamICY {
 		naturalEOF, copyErr = writeICY(writer, stdout, track.Source.DisplayTitle(), track.Source.URL)
 	} else {
 		_, copyErr = io.Copy(writer, stdout)

@@ -9,14 +9,15 @@ import (
 )
 
 const (
-	DefaultAddr        = "127.0.0.1:0"
-	DefaultPath        = "/stream.mp3"
-	DefaultFFmpegPath  = "ffmpeg"
-	DefaultYTDLPPath   = "yt-dlp"
-	DefaultBitrate     = "192k"
-	DefaultIdleTimeout = 20 * time.Second
-	HealthPath         = "/healthz"
-	HealthTokenQuery   = "token"
+	DefaultAddr                          = "127.0.0.1:0"
+	DefaultPath                          = "/stream.mp3"
+	DefaultFFmpegPath                    = "ffmpeg"
+	DefaultYTDLPPath                     = "yt-dlp"
+	DefaultBitrate                       = "192k"
+	DefaultIdleTimeout                   = 20 * time.Second
+	DefaultIncompletePlaylistIdleTimeout = 5 * time.Minute
+	HealthPath                           = "/healthz"
+	HealthTokenQuery                     = "token"
 )
 
 type ServerConfig struct {
@@ -81,6 +82,14 @@ func (cfg ServerConfig) withDefaults() ServerConfig {
 // MultiTrack reports whether the daemon is serving more than one source.
 func (cfg ServerConfig) MultiTrack() bool {
 	return len(cfg.Tracks) > 1
+}
+
+func (cfg ServerConfig) incompletePlaylistIdleTimeout() time.Duration {
+	timeout := cfg.IdleTimeout * 5
+	if timeout < DefaultIncompletePlaylistIdleTimeout {
+		timeout = DefaultIncompletePlaylistIdleTimeout
+	}
+	return timeout
 }
 
 func NewHealthToken() (string, error) {

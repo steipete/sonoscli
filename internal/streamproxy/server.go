@@ -15,20 +15,36 @@ import (
 )
 
 type Server struct {
-	cfg    ServerConfig
-	mu     sync.Mutex
-	active int
-	served bool
-	done   chan struct{}
-	once   sync.Once
+	cfg       ServerConfig
+	mu        sync.Mutex
+	active    int
+	served    bool
+	completed map[string]bool
+	done      chan struct{}
+	once      sync.Once
 }
 
 func NewServer(cfg ServerConfig) *Server {
 	cfg = cfg.withDefaults()
 	return &Server{
-		cfg:  cfg,
-		done: make(chan struct{}),
+		cfg:       cfg,
+		completed: make(map[string]bool),
+		done:      make(chan struct{}),
 	}
+}
+
+// allTracksCompleted reports whether every configured track has been served
+// to natural EOF at least once. Callers must hold s.mu.
+func (s *Server) allTracksCompleted() bool {
+	if len(s.cfg.Tracks) == 0 {
+		return false
+	}
+	for _, track := range s.cfg.Tracks {
+		if !s.completed[track.Path] {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *Server) Serve(ctx context.Context) error {
@@ -98,19 +114,23 @@ func (s *Server) shutdownWhenDone(ctx context.Context, srv *http.Server) {
 		case <-ticker.C:
 			s.mu.Lock()
 			active := s.active
-			served := s.served
+			multi := s.cfg.MultiTrack()
+			allDone := s.allTracksCompleted()
 			s.mu.Unlock()
 			if active > 0 {
 				lastIdle = time.Now()
 				continue
 			}
-			if served && time.Since(lastIdle) >= s.cfg.IdleTimeout {
-				shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
-				_ = srv.Shutdown(shutdownCtx)
-				cancel()
-				return
+			// In multi-track mode, never shut down until every configured
+			// track has been delivered to natural EOF at least once. Sonos
+			// pre-fetches upcoming queue items briefly to determine size
+			// and disconnects, then refetches them later when it actually
+			// plays them — if we shut down between those events, Sonos
+			// gets a connection refused on the second fetch and stops.
+			if multi && !allDone {
+				continue
 			}
-			if !served && time.Since(lastIdle) >= s.cfg.IdleTimeout {
+			if time.Since(lastIdle) >= s.cfg.IdleTimeout {
 				shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 				_ = srv.Shutdown(shutdownCtx)
 				cancel()
@@ -242,10 +262,18 @@ func (s *Server) handleTrackStream(w http.ResponseWriter, r *http.Request, track
 		log.Printf("client %q stream copy failed: %v", r.RemoteAddr, copyErr) //nolint:gosec // diagnostic log only; values are quoted.
 	}
 	log.Printf("client %q stream ended path=%s naturalEOF=%v", r.RemoteAddr, track.Path, naturalEOF) //nolint:gosec // diagnostic log only; values are quoted.
-	// In multi-track mode, rely on the idle-timeout shutdown — the daemon
-	// must keep serving until every queued track has been played.
-	if naturalEOF && !s.cfg.MultiTrack() {
-		s.once.Do(func() { close(s.done) })
+	if naturalEOF {
+		s.mu.Lock()
+		s.completed[track.Path] = true
+		s.mu.Unlock()
+		// Single-track mode keeps its fast-shutdown behaviour: once the
+		// only source has been delivered in full, signal the daemon to
+		// exit immediately. Multi-track mode relies on the idle-timeout
+		// loop in shutdownWhenDone, which waits until every configured
+		// track has completed before honouring the idle timer.
+		if !s.cfg.MultiTrack() {
+			s.once.Do(func() { close(s.done) })
+		}
 	}
 }
 

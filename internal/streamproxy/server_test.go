@@ -451,6 +451,47 @@ func TestServeHandlesMultipleTracks(t *testing.T) {
 	}
 }
 
+func TestShutdownWaitsForAllMultiTrackCompletions(t *testing.T) {
+	t.Parallel()
+
+	srv := NewServer(ServerConfig{
+		IdleTimeout: time.Millisecond,
+		Tracks: []Track{
+			{Path: "/t1.mp3", Source: Source{URL: "https://example.com/a"}},
+			{Path: "/t2.mp3", Source: Source{URL: "https://example.com/b"}},
+		},
+	})
+	httpSrv := &http.Server{} //nolint:gosec // test-only server, never listens.
+	done := make(chan struct{})
+	go func() {
+		srv.shutdownWhenDone(context.Background(), httpSrv)
+		close(done)
+	}()
+
+	// With only one of two tracks completed, the loop must NOT shut down
+	// even after the idle timer fires repeatedly.
+	srv.mu.Lock()
+	srv.completed["/t1.mp3"] = true
+	srv.mu.Unlock()
+
+	select {
+	case <-done:
+		t.Fatalf("daemon shut down with unfinished tracks")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	// Once every track has completed, the next idle tick should release it.
+	srv.mu.Lock()
+	srv.completed["/t2.mp3"] = true
+	srv.mu.Unlock()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("daemon did not shut down after all tracks completed")
+	}
+}
+
 func TestServeListenError(t *testing.T) {
 	t.Parallel()
 

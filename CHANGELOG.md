@@ -4,6 +4,9 @@
 
 ### Added
 
+### Changed
+- Docker and release builds now use supported Go 1.26 toolchains, with current stable GoReleaser and lint workflow dependencies.
+
 ## [0.3.2] - 2026-06-10
 
 ### Added

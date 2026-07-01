@@ -48,7 +48,7 @@ jobs:
         run: go test -race ./...
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9.2.0
+        uses: golangci/golangci-lint-action@v9.3.0
         with:
-          version: v2.12.1
+          version: v2.12.2
           args: ./...

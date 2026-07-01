@@ -108,4 +108,4 @@ jobs:
           gh run watch "${run_id}" \
             --repo steipete/homebrew-tap \
             --exit-status \
-            --interval 10
+            --interval 60

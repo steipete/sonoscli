@@ -8,7 +8,7 @@ Goals:
 
 ## Prereqs
 
-- Go `1.22+`
+- Go `1.26+`
 - `golangci-lint` installed (for `make lint` / `pnpm lint`)
 - `ffmpeg` and `yt-dlp` installed for `play-url` checks
 - Sonos speakers reachable on the local network (UDP SSDP + TCP 1400)

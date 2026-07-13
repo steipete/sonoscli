@@ -7,6 +7,9 @@
 ### Fixed
 - SMAPI authentication now accepts services that return an auth token without a refresh key, such as Pocket Casts. Thanks @stateanomaly.
 
+### Changed
+- Development, CI, and source installs now use the supported Go 1.26 toolchain.
+
 ## [0.3.3] - 2026-07-01
 
 ### Changed

@@ -30,6 +30,16 @@ func TestFileSMAPITokenStore_SaveLoadHas(t *testing.T) {
 	if err := s.Save("svc", "hh", SMAPITokenPair{}); err == nil {
 		t.Fatalf("expected error for empty token pair")
 	}
+	if err := s.Save("svc", "token-only", SMAPITokenPair{AuthToken: "a"}); err != nil {
+		t.Fatalf("Save token-only: %v", err)
+	}
+	tokenOnly, ok, err := s.Load("svc", "token-only")
+	if err != nil || !ok {
+		t.Fatalf("Load token-only: ok=%v err=%v", ok, err)
+	}
+	if tokenOnly.AuthToken != "a" || tokenOnly.PrivateKey != "" {
+		t.Fatalf("unexpected token-only pair: %#v", tokenOnly)
+	}
 
 	now := time.Date(2025, 12, 13, 0, 0, 0, 0, time.UTC)
 	if err := s.Save("svc", "hh", SMAPITokenPair{AuthToken: "a", PrivateKey: "b", UpdatedAt: now}); err != nil {

@@ -4,6 +4,9 @@
 
 ### Added
 
+### Fixed
+- SMAPI authentication now accepts services that return an auth token without a refresh key, such as Pocket Casts. Thanks @stateanomaly.
+
 ## [0.3.3] - 2026-07-01
 
 ### Changed

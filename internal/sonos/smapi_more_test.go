@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -165,6 +166,86 @@ func TestSMAPIClient_BeginAndCompleteAuthentication_DeviceLink(t *testing.T) {
 	}
 	if _, ok, _ := store.Load(sm.Service.ID, sm.HouseholdID); !ok {
 		t.Fatalf("expected token to be stored")
+	}
+}
+
+func TestSMAPIClient_CompleteAuthentication_AcceptsTokenWithoutPrivateKey(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if action := strings.Trim(r.Header.Get("SOAPACTION"), `"`); action != smapiSOAPAction+"getDeviceAuthToken" {
+			t.Fatalf("unexpected SOAPACTION: %q", action)
+		}
+		_, _ = w.Write([]byte(`<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <getDeviceAuthTokenResponse xmlns="http://www.sonos.com/Services/1.1">
+      <getDeviceAuthTokenResult>
+        <authToken> token-only </authToken>
+      </getDeviceAuthTokenResult>
+    </getDeviceAuthTokenResponse>
+  </s:Body>
+</s:Envelope>`))
+	}))
+	t.Cleanup(srv.Close)
+
+	store, err := NewFileSMAPITokenStore(filepath.Join(t.TempDir(), "tokens.json"))
+	if err != nil {
+		t.Fatalf("NewFileSMAPITokenStore: %v", err)
+	}
+	sm := &SMAPIClient{
+		httpClient:  srv.Client(),
+		Service:     MusicServiceDescriptor{ID: "233", Name: "Pocket Casts", SecureURI: srv.URL, Auth: MusicServiceAuthDeviceLink},
+		HouseholdID: "Sonos_TEST",
+		DeviceID:    "RINCON_DEVICEID",
+		TokenStore:  store,
+	}
+
+	pair, err := sm.CompleteAuthentication(context.Background(), "ABCD", "")
+	if err != nil {
+		t.Fatalf("CompleteAuthentication: %v", err)
+	}
+	if pair.AuthToken != "token-only" || pair.PrivateKey != "" {
+		t.Fatalf("unexpected pair: %#v", pair)
+	}
+	stored, ok, err := store.Load(sm.Service.ID, sm.HouseholdID)
+	if err != nil || !ok {
+		t.Fatalf("Load: ok=%v err=%v", ok, err)
+	}
+	if stored.AuthToken != "token-only" || stored.PrivateKey != "" {
+		t.Fatalf("unexpected stored pair: %#v", stored)
+	}
+}
+
+func TestSMAPIClient_CompleteAuthentication_RejectsMissingAuthToken(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <getDeviceAuthTokenResponse xmlns="http://www.sonos.com/Services/1.1">
+      <getDeviceAuthTokenResult><privateKey>refresh-key</privateKey></getDeviceAuthTokenResult>
+    </getDeviceAuthTokenResponse>
+  </s:Body>
+</s:Envelope>`))
+	}))
+	t.Cleanup(srv.Close)
+
+	store := &memSMAPITokenStore{}
+	sm := &SMAPIClient{
+		httpClient:  srv.Client(),
+		Service:     MusicServiceDescriptor{ID: "233", SecureURI: srv.URL, Auth: MusicServiceAuthDeviceLink},
+		HouseholdID: "Sonos_TEST",
+		DeviceID:    "RINCON_DEVICEID",
+		TokenStore:  store,
+	}
+
+	if _, err := sm.CompleteAuthentication(context.Background(), "ABCD", ""); err == nil {
+		t.Fatal("expected missing auth token error")
+	}
+	if store.Has(sm.Service.ID, sm.HouseholdID) {
+		t.Fatal("missing auth token must not be stored")
 	}
 }
 

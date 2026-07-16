@@ -96,6 +96,52 @@ func TestSMAPI_Search_Success(t *testing.T) {
 	}
 }
 
+func TestSMAPI_Search_TokenWithoutPrivateKey(t *testing.T) {
+	var seenBody string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := ioReadAllLimit(r.Body, 1<<20)
+		seenBody = string(body)
+		w.Header().Set("Content-Type", `text/xml; charset="utf-8"`)
+		_, _ = w.Write([]byte(`<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <searchResponse xmlns="http://www.sonos.com/Services/1.1">
+      <searchResult><index>0</index><count>0</count><total>0</total></searchResult>
+    </searchResponse>
+  </s:Body>
+</s:Envelope>`))
+	}))
+	defer srv.Close()
+
+	store := newMemTokenStore()
+	if err := store.Save("233", "Sonos_ABC", SMAPITokenPair{AuthToken: "TOKEN"}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	c := &SMAPIClient{
+		httpClient: srv.Client(),
+		Service: MusicServiceDescriptor{
+			ID:        "233",
+			Name:      "Pocket Casts",
+			SecureURI: srv.URL,
+			Auth:      MusicServiceAuthDeviceLink,
+		},
+		HouseholdID:     "Sonos_ABC",
+		DeviceID:        "DEV",
+		TokenStore:      store,
+		searchPrefixMap: map[string]string{"shows": "search:show"},
+	}
+
+	if _, err := c.Search(context.Background(), "shows", "test", 0, 10); err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if !strings.Contains(seenBody, "<token>TOKEN</token>") {
+		t.Fatalf("request missing auth token: %s", seenBody)
+	}
+	if strings.Contains(seenBody, "<key>") {
+		t.Fatalf("request unexpectedly included an empty private key: %s", seenBody)
+	}
+}
+
 func TestSMAPI_TokenRefresh(t *testing.T) {
 	var calls int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

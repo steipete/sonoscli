@@ -72,8 +72,8 @@ func (s *FileSMAPITokenStore) Save(serviceID, householdID string, pair SMAPIToke
 	}
 	pair.AuthToken = strings.TrimSpace(pair.AuthToken)
 	pair.PrivateKey = strings.TrimSpace(pair.PrivateKey)
-	if pair.AuthToken == "" || pair.PrivateKey == "" {
-		return errors.New("token pair is empty")
+	if pair.AuthToken == "" {
+		return errors.New("auth token is empty")
 	}
 	if pair.UpdatedAt.IsZero() {
 		pair.UpdatedAt = time.Now().UTC()

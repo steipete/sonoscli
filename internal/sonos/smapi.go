@@ -209,8 +209,8 @@ func (c *SMAPIClient) CompleteAuthentication(ctx context.Context, linkCode, link
 		DeviceID:    c.DeviceID,
 		HouseholdID: c.HouseholdID,
 	}
-	if pair.AuthToken == "" || pair.PrivateKey == "" {
-		return SMAPITokenPair{}, errors.New("empty token pair in response")
+	if pair.AuthToken == "" {
+		return SMAPITokenPair{}, errors.New("empty auth token in response")
 	}
 	if err := c.TokenStore.Save(c.Service.ID, c.HouseholdID, pair); err != nil {
 		return SMAPITokenPair{}, err
@@ -593,9 +593,11 @@ func (c *SMAPIClient) buildCredentialsHeader(allowUnauthed bool) (string, error)
 			creds.WriteString(`<token>`)
 			creds.WriteString(xmlEscapeText(pair.AuthToken))
 			creds.WriteString(`</token>`)
-			creds.WriteString(`<key>`)
-			creds.WriteString(xmlEscapeText(pair.PrivateKey))
-			creds.WriteString(`</key>`)
+			if pair.PrivateKey != "" {
+				creds.WriteString(`<key>`)
+				creds.WriteString(xmlEscapeText(pair.PrivateKey))
+				creds.WriteString(`</key>`)
+			}
 			creds.WriteString(`<householdId>`)
 			creds.WriteString(xmlEscapeText(c.HouseholdID))
 			creds.WriteString(`</householdId>`)

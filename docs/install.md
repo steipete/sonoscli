@@ -21,7 +21,7 @@ brew upgrade steipete/tap/sonoscli
 
 ## go install
 
-If you already have a Go toolchain (Go 1.22+):
+If you already have a Go toolchain (Go 1.26+):
 
 ```bash
 go install github.com/steipete/sonoscli/cmd/sonos@latest

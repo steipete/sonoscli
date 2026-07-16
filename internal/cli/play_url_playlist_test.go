@@ -3,8 +3,6 @@ package cli
 import (
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -252,11 +250,8 @@ func TestLooksLikePlaylistURLDoesNotAutoDetectYoutuBeVideoLinks(t *testing.T) {
 func TestEnumerateYTDLPPlaylistReturnsErrorWhenYTDLPFails(t *testing.T) {
 	t.Parallel()
 
-	path := filepath.Join(t.TempDir(), "yt-dlp")
 	script := "#!/bin/sh\necho 'ERROR: invalid url' 1>&2\nexit 1\n"
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
-		t.Fatalf("write fake: %v", err)
-	}
+	path := writeTestExecutable(t, "yt-dlp", script)
 
 	_, err := enumerateYTDLPPlaylist(context.Background(), path, "https://example.com/x", 0)
 	if err == nil {
@@ -267,10 +262,6 @@ func TestEnumerateYTDLPPlaylistReturnsErrorWhenYTDLPFails(t *testing.T) {
 func writeFakeYTDLPPlaylist(t *testing.T, output string) string {
 	t.Helper()
 
-	path := filepath.Join(t.TempDir(), "yt-dlp")
 	script := "#!/bin/sh\ncat <<'EOF'\n" + output + "EOF\n"
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
-		t.Fatalf("write fake yt-dlp: %v", err)
-	}
-	return path
+	return writeTestExecutable(t, "yt-dlp", script)
 }

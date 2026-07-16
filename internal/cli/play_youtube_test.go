@@ -3,8 +3,6 @@ package cli
 import (
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -168,7 +166,6 @@ func TestParseYTDLPStream(t *testing.T) {
 func TestYTDLPResolverResolve(t *testing.T) {
 	t.Parallel()
 
-	path := filepath.Join(t.TempDir(), "yt-dlp")
 	script := `#!/bin/sh
 if [ "${1:-}" = "fail" ]; then
   echo nope >&2
@@ -178,9 +175,7 @@ cat <<'JSON'
 {"title":"Video Title","url":"https://rr.example/audio.m4a","webpage_url":"https://www.youtube.com/watch?v=abc","format_id":"140","ext":"m4a","acodec":"mp4a.40.2"}
 JSON
 `
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
-		t.Fatalf("write fake yt-dlp: %v", err)
-	}
+	path := writeTestExecutable(t, "yt-dlp", script)
 
 	stream, err := (ytDLPResolver{path: path}).Resolve(context.Background(), "https://www.youtube.com/watch?v=abc", youtubeResolveOptions{})
 	if err != nil {

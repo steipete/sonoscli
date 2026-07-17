@@ -2,13 +2,20 @@
 
 ## [Unreleased]
 
-### Added
+## [0.3.4] - 2026-07-17
+
+### Highlights
+- Pocket Casts and other SMAPI services that return token-only credentials can now finish authentication and stay signed in.
+- Source builds, CI, releases, and Docker now use current supported Go, Python, and GitHub Actions toolchains.
 
 ### Fixed
-- SMAPI authentication now accepts services that return an auth token without a refresh key, such as Pocket Casts. Thanks @stateanomaly.
+- SMAPI authentication now accepts a valid auth token without an optional refresh key while still rejecting empty auth tokens. Thanks @stateanomaly.
+- Parallel CLI tests no longer intermittently fail with Linux `ETXTBSY` errors when creating fake `yt-dlp` executables.
 
 ### Changed
-- Development, CI, and source installs now use the supported Go 1.26 toolchain.
+- Development, CI, and source installs now require Go 1.26.
+- Docker images now use Python 3.14; CI, docs, and release workflows use the latest stable setup actions.
+- Release automation now checks Homebrew tap completion at a lower request rate.
 
 ## [0.3.3] - 2026-07-01
 

@@ -49,6 +49,7 @@ func TestWatchCmdValidatesTarget(t *testing.T) {
 func TestWatchCmdEmitsJSONEvent(t *testing.T) {
 	// Fake Sonos speaker that accepts SUBSCRIBE and records callback URL.
 	callbackCh := make(chan string, 1)
+	responseReceived := make(chan struct{})
 	notifyDone := make(chan struct{})
 	releaseSubscribe := sync.OnceFunc(func() { close(notifyDone) })
 	defer releaseSubscribe()
@@ -70,8 +71,6 @@ func TestWatchCmdEmitsJSONEvent(t *testing.T) {
 			case callbackCh <- cb:
 			default:
 			}
-			// Deliver the initial event before the subscription response can be read.
-			<-notifyDone
 			return
 		case r.Method == "SUBSCRIBE" && r.URL.Path == "/MediaRenderer/RenderingControl/Event":
 			w.Header().Set("SID", "uuid:rc")
@@ -98,7 +97,15 @@ func TestWatchCmdEmitsJSONEvent(t *testing.T) {
 		return &sonos.Client{
 			IP:   u.Hostname(),
 			Port: port,
-			HTTP: srv.Client(),
+			HTTP: &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+				resp, err := srv.Client().Transport.RoundTrip(r)
+				if err == nil && r.Method == "SUBSCRIBE" && r.URL.Path == "/MediaRenderer/AVTransport/Event" {
+					// UPnP delivers the response first; application SID registration can still lag.
+					close(responseReceived)
+					<-notifyDone
+				}
+				return resp, err
+			})},
 		}
 	}
 
@@ -120,6 +127,11 @@ func TestWatchCmdEmitsJSONEvent(t *testing.T) {
 	case callbackURL = <-callbackCh:
 	case <-time.After(1 * time.Second):
 		t.Fatalf("timed out waiting for subscribe callback")
+	}
+	select {
+	case <-responseReceived:
+	case <-time.After(1 * time.Second):
+		t.Fatalf("timed out waiting for subscription response")
 	}
 
 	// Emit a NOTIFY event to the callback server.

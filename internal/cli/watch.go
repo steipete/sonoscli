@@ -11,7 +11,6 @@ import (
 	"os/signal"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -80,7 +79,6 @@ func newWatchCmd(flags *rootFlags) *cobra.Command {
 			callbackURL := fmt.Sprintf("http://%s:%d/notify", listenIP, port)
 
 			events := make(chan watchEvent, 128)
-			var sidToService sync.Map // sid -> service name
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/notify", func(w http.ResponseWriter, r *http.Request) {
@@ -93,11 +91,6 @@ func newWatchCmd(flags *rootFlags) *cobra.Command {
 				body, _ := io.ReadAll(r.Body)
 				_ = r.Body.Close()
 
-				service := "unknown"
-				if v, ok := sidToService.Load(sid); ok {
-					service = v.(string)
-				}
-
 				vars, err := sonos.ParseEvent(body)
 				if err != nil {
 					vars = map[string]string{"parse_error": err.Error()}
@@ -105,11 +98,10 @@ func newWatchCmd(flags *rootFlags) *cobra.Command {
 
 				select {
 				case events <- watchEvent{
-					Time:    time.Now().UTC(),
-					Service: service,
-					SID:     sid,
-					Seq:     seq,
-					Vars:    vars,
+					Time: time.Now().UTC(),
+					SID:  sid,
+					Seq:  seq,
+					Vars: vars,
 				}:
 				default:
 					// Drop if the consumer is too slow.
@@ -130,14 +122,16 @@ func newWatchCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 			defer func() { _ = c.Unsubscribe(context.Background(), avtSub) }()
-			sidToService.Store(avtSub.SID, "avtransport")
 
 			rcSub, err := c.SubscribeRenderingControl(ctx, callbackURL, 0)
 			if err != nil {
 				return err
 			}
 			defer func() { _ = c.Unsubscribe(context.Background(), rcSub) }()
-			sidToService.Store(rcSub.SID, "renderingcontrol")
+			sidToService := map[string]string{
+				avtSub.SID: "avtransport",
+				rcSub.SID:  "renderingcontrol",
+			}
 
 			if !isJSON(flags) && !isTSV(flags) {
 				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Watching events (callback %s). Press Ctrl+C to stop.\n", callbackURL)
@@ -148,6 +142,11 @@ func newWatchCmd(flags *rootFlags) *cobra.Command {
 				case <-ctx.Done():
 					return nil
 				case ev := <-events:
+					// Initial NOTIFY requests can arrive before SUBSCRIBE returns its SID.
+					ev.Service = sidToService[ev.SID]
+					if ev.Service == "" {
+						ev.Service = "unknown"
+					}
 					if isJSON(flags) {
 						_ = writeJSONLine(cmd, ev)
 						continue

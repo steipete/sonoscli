@@ -5,6 +5,8 @@ description: Subscribe to live AVTransport and RenderingControl events from a sp
 
 # `sonos watch`
 
+Initial notifications are queued during subscription setup and labeled with their service once the subscriptions are established.
+
 Subscribes to UPnP eventing on the target speaker and prints state changes as they arrive. Ctrl+C to stop. Useful for debugging, dashboards, or piping into another script.
 
 ## Synopsis

@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- Label initial `watch` notifications with the correct service even when they arrive before subscription setup finishes.
+
 ### Changed
 - Prefer Go 1.26.8 for source, CI, and Docker builds while retaining Go 1.26 compatibility; refresh lint tooling, the Dockerfile frontend, and pinned documentation workflow actions.
 

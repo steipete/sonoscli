@@ -1,8 +1,10 @@
 # Changelog
 
-## [0.3.5] - Unreleased
-
 ## [Unreleased]
+
+## [0.3.5] - 2026-10-23
+
+**Highlights:** Fix the reachable crypto/x509 vulnerability GO-2026-6809 with Go 1.27.3, explain SMAPI API-client identity rejections, and correctly label initial watch events.
 
 ### Fixed
 - Explain SMAPI API-client identity rejections and suggest supported playback alternatives without exposing service response bodies. Thanks @DonnieFi.

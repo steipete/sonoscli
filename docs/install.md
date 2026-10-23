@@ -28,13 +28,13 @@ go install github.com/steipete/sonoscli/cmd/sonos@latest
 sonos --version
 ```
 
-Source builds retain Go 1.26 as the minimum and prefer Go 1.26.8 via `go.mod`. CI and Docker builds use the same preferred patch version.
+Source builds retain Go 1.26 as the minimum and prefer Go 1.27.3 via `go.mod`. CI and Docker builds use the same preferred patch version.
 
 The binary lands in `$(go env GOBIN)` (defaults to `$HOME/go/bin`) — make sure that's on your `PATH`.
 
 ## Prebuilt release archives
 
-Each tagged release publishes archives for macOS (universal, plus Intel and Apple Silicon compatibility archives), Linux (amd64 + arm64), and Windows (amd64 + arm64) on the [GitHub releases page](https://github.com/steipete/sonoscli/releases). Download, extract, drop the `sonos` binary somewhere on your `PATH`.
+Each tagged release publishes archives for macOS (universal, plus Intel and Apple Silicon compatibility archives), Linux (amd64 + arm64), and Windows (amd64 + arm64) on the [GitHub releases page](https://github.com/steipete/sonoscli/releases). The prebuilt macOS binaries require macOS 13 or later. Download, extract, drop the `sonos` binary somewhere on your `PATH`.
 
 ## From source
 

@@ -560,12 +560,31 @@ func (c *SMAPIClient) smapiCall(ctx context.Context, method string, args map[str
 					return nil, fmt.Errorf("smapi fault after refresh: %s: %s", fault2.FaultCode, fault2.FaultString)
 				}
 			}
-			return nil, fmt.Errorf("smapi soap http %s", resp2.Status)
+			return nil, smapiHTTPError(resp2.StatusCode, resp2.Status, raw2)
 		}
 
 		return nil, fmt.Errorf("smapi fault: %s: %s", fault.FaultCode, fault.FaultString)
 	}
-	return nil, fmt.Errorf("smapi soap http %s", resp.Status)
+	return nil, smapiHTTPError(resp.StatusCode, resp.Status, raw)
+}
+
+// Recognize API gateway rejection without exposing arbitrary service response
+// bodies, which may contain account details or credentials.
+func smapiHTTPError(statusCode int, status string, raw []byte) error {
+	if statusCode == http.StatusForbidden {
+		var payload struct {
+			Error struct {
+				Status  string `json:"status"`
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if json.Unmarshal(raw, &payload) == nil &&
+			payload.Error.Status == "PERMISSION_DENIED" &&
+			strings.Contains(payload.Error.Message, "Method doesn't allow unregistered callers") {
+			return fmt.Errorf("smapi soap http %s: service requires a registered API client identity (API key or equivalent); account linking alone cannot resolve this; start playback in the Sonos app and control it with sonos, or use sonos play-url with a public URL (playback only, not account authentication)", status)
+		}
+	}
+	return fmt.Errorf("smapi soap http %s", status)
 }
 
 func (c *SMAPIClient) buildCredentialsHeader(allowUnauthed bool) (string, error) {

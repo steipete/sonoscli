@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### Fixed
+- Explain SMAPI API-client identity rejections and suggest supported playback alternatives without exposing service response bodies. Thanks @DonnieFi.
 - Label initial `watch` notifications with the correct service even when they arrive before subscription setup finishes.
 
 ### Changed

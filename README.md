@@ -44,6 +44,24 @@ YouTube:
 - Sonos plays the resolved temporary audio stream directly; long videos may expire and need resolving again.
 - For most YouTube playback, prefer `sonos play-url`: it proxies the stream through your machine, transcodes to MP3, and avoids Sonos having to fetch YouTube's temporary media URL itself.
 
+YouTube Music account browsing is separate from playback control. Google may
+reject `sonos auth smapi begin` or `sonos auth smapi complete` with
+`--service "YouTube Music"` and HTTP 403
+because the caller lacks a registered API client identity. Reauthorizing the
+account in the Sonos app does not supply that identity to sonoscli. Music started
+in the app can still be inspected and controlled with `status`, `play`, `pause`,
+`next`, and queue commands.
+
+For a playable public YouTube or YouTube Music URL, try the URL-streaming path
+instead (requires `yt-dlp` and `ffmpeg`; this is not SMAPI account browsing):
+
+```bash
+sonos play-url --name "Kitchen" "https://www.youtube.com/watch?v=<video-id>"
+```
+
+The computer running the proxy must remain on and reachable by the speaker while
+playing. This starts playback immediately; it does not queue the URL as "play next".
+
 Smart URL streaming:
 - Install `yt-dlp` and `ffmpeg` for `sonos play-url`.
 - `play-url` resolves common media pages, pipes `yt-dlp` sources into `ffmpeg`, transcodes to a local MP3 stream, sends the resolved title/provider to Sonos metadata, and exits the proxy when playback ends or goes idle.

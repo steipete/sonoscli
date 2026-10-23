@@ -28,7 +28,8 @@ Expected:
 - All commands exit `0`
 - CI should match `.github/workflows/ci.yml` (`gofmt`, coverage, `golangci-lint`, race tests, `go vet`)
 - CI enforces a minimum total coverage of `75%` (statement coverage across `./...`) and a focused `85%` floor for the stream proxy package.
-- The main CI job uses the preferred Go 1.26.8 toolchain from `go.mod`; a separate job tests the Go 1.26.0 source minimum with automatic toolchain switching disabled.
+- The main CI job uses the preferred Go 1.27.3 toolchain from `go.mod`; a separate job tests the Go 1.26.0 source minimum with automatic toolchain switching disabled. Docker and release builds use the same patched toolchain.
+- To verify release builds without publishing or creating tags, dispatch `release-unified.yml` on `main` with the current version and `dry_run: true`.
 
 ## Live network test plan (manual)
 

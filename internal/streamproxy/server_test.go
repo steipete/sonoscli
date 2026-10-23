@@ -424,7 +424,10 @@ func TestServeHandlesStreamOverHTTP(t *testing.T) {
 
 	cancel()
 	select {
-	case <-errCh:
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("serve returned error: %v", err)
+		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("server did not stop")
 	}
@@ -478,7 +481,10 @@ func TestServeHandlesMultipleTracks(t *testing.T) {
 
 	cancel()
 	select {
-	case <-errCh:
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("serve returned error: %v", err)
+		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("server did not stop")
 	}

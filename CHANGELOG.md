@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- `sonos scene save` fails when a room's volume or mute cannot be read, instead of storing volume 0 and mute off.
+
 ## [0.3.5] - 2026-10-23
 
 **Highlights:** Fix the reachable crypto/x509 vulnerability GO-2026-6809 with Go 1.27.3, explain SMAPI API-client identity rejections, and correctly label initial watch events.

@@ -165,8 +165,14 @@ func newSceneSaveCmd(flags *rootFlags) *cobra.Command {
 					}
 					seen[m.UUID] = true
 					c := newSceneSpeakerClient(m.IP, flags.Timeout)
-					vol, _ := c.GetVolume(cmd.Context())
-					mute, _ := c.GetMute(cmd.Context())
+					vol, err := c.GetVolume(cmd.Context())
+					if err != nil {
+						return fmt.Errorf("get volume for %s: %w", m.Name, err)
+					}
+					mute, err := c.GetMute(cmd.Context())
+					if err != nil {
+						return fmt.Errorf("get mute for %s: %w", m.Name, err)
+					}
 					scene.Devices = append(scene.Devices, scenes.SceneDevice{
 						UUID:   m.UUID,
 						Name:   m.Name,

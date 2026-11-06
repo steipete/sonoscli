@@ -13,7 +13,7 @@ A **scene** is a named snapshot of your Sonos system: which speakers are grouped
 sonos scene save evening
 ```
 
-This walks the live topology, snapshots every visible zone (and its members, volume, and mute), and stores the scene under your config directory.
+This walks the live topology, snapshots every visible zone (and its members, volume, and mute), and stores the scene under your config directory. If a visible room does not answer its volume or mute read, save stops and leaves any previously stored scene unchanged. A reported volume of 0 is still stored.
 
 ## List, apply, delete
 

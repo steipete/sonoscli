@@ -23,7 +23,7 @@ sonos scene apply evening
 sonos scene delete evening
 ```
 
-Apply is best-effort and idempotent — running `sonos scene apply evening` twice is safe.
+Apply reports an error when ungrouping, joining, mute, or volume restore fails. Running `sonos scene apply evening` again is safe when the speakers accept the calls.
 
 ## Targeting one room (experimental)
 

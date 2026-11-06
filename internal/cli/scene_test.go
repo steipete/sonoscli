@@ -71,14 +71,18 @@ type fakeSceneSpeaker struct {
 
 	setVolCalls int
 	setVolValue int
+	setVolErr   error
 
 	setMuteCalls int
 	setMuteValue bool
+	setMuteErr   error
+
+	leaveErr error
 }
 
 func (f *fakeSceneSpeaker) LeaveGroup(ctx context.Context) error {
 	f.leaveCalls++
-	return nil
+	return f.leaveErr
 }
 
 func (f *fakeSceneSpeaker) JoinGroup(ctx context.Context, coordinatorUUID string) error {
@@ -91,13 +95,13 @@ func (f *fakeSceneSpeaker) GetVolume(ctx context.Context) (int, error) { return 
 func (f *fakeSceneSpeaker) SetVolume(ctx context.Context, volume int) error {
 	f.setVolCalls++
 	f.setVolValue = volume
-	return nil
+	return f.setVolErr
 }
 func (f *fakeSceneSpeaker) GetMute(ctx context.Context) (bool, error) { return f.mute, nil }
 func (f *fakeSceneSpeaker) SetMute(ctx context.Context, mute bool) error {
 	f.setMuteCalls++
 	f.setMuteValue = mute
-	return nil
+	return f.setMuteErr
 }
 
 func TestSceneSaveCapturesGroupsAndDeviceAudio(t *testing.T) {
@@ -266,6 +270,75 @@ func TestSceneApplyUngroupsJoinsAndRestoresAudio(t *testing.T) {
 	// Invisible device should be ignored.
 	if s := speakers["192.168.1.12"]; s != nil && (s.leaveCalls != 0 || s.joinCalls != 0 || s.setVolCalls != 0 || s.setMuteCalls != 0) {
 		t.Fatalf("expected invisible device untouched, got %+v", s)
+	}
+}
+
+func TestSceneApplyReportsLeaveAndLevelErrors(t *testing.T) {
+	flags := &rootFlags{Timeout: 2 * time.Second, Format: formatJSON}
+	scene := scenes.Scene{
+		Name: "Work",
+		Groups: []scenes.SceneGroup{{
+			CoordinatorUUID: "RINCON_A1400",
+			MemberUUIDs:     []string{"RINCON_A1400", "RINCON_B1400"},
+		}},
+		Devices: []scenes.SceneDevice{
+			{UUID: "RINCON_A1400", Name: "A", IP: "192.168.1.10", Volume: 5, Mute: false},
+			{UUID: "RINCON_B1400", Name: "B", IP: "192.168.1.11", Volume: 15, Mute: true},
+		},
+	}
+	top := sonos.Topology{
+		ByIP: map[string]sonos.Member{
+			"192.168.1.10": {Name: "A", IP: "192.168.1.10", UUID: "RINCON_A1400", IsVisible: true},
+			"192.168.1.11": {Name: "B", IP: "192.168.1.11", UUID: "RINCON_B1400", IsVisible: true},
+		},
+	}
+	origStore := newSceneStore
+	origTG := newSceneTopologyGetter
+	origClient := newSceneSpeakerClient
+	t.Cleanup(func() {
+		newSceneStore = origStore
+		newSceneTopologyGetter = origTG
+		newSceneSpeakerClient = origClient
+	})
+	newSceneTopologyGetter = func(ctx context.Context, timeout time.Duration) (sceneTopologyGetter, error) {
+		return &fakeSceneTopologyGetter{top: top}, nil
+	}
+
+	cases := []struct {
+		name    string
+		speaker *fakeSceneSpeaker
+		want    string
+	}{
+		{name: "leave", speaker: &fakeSceneSpeaker{ip: "192.168.1.10", leaveErr: errors.New("busy")}, want: "leave group for A"},
+		{name: "mute", speaker: &fakeSceneSpeaker{ip: "192.168.1.10", setMuteErr: errors.New("busy")}, want: "set mute for A"},
+		{name: "volume", speaker: &fakeSceneSpeaker{ip: "192.168.1.10", setVolErr: errors.New("busy")}, want: "set volume for A"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &fakeSceneStore{scenes: map[string]scenes.Scene{"Work": scene}}
+			speakers := map[string]*fakeSceneSpeaker{
+				"192.168.1.10": tc.speaker,
+				"192.168.1.11": {ip: "192.168.1.11"},
+			}
+			newSceneStore = func() (scenes.Store, error) { return store, nil }
+			newSceneSpeakerClient = func(ip string, timeout time.Duration) sceneSpeakerClient {
+				return speakers[ip]
+			}
+			cmd := newSceneCmd(flags)
+			var out strings.Builder
+			cmd.SetOut(&out)
+			cmd.SetErr(newDiscardWriter())
+			cmd.SetArgs([]string{"apply", "Work"})
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+			err := cmd.ExecuteContext(context.Background())
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error = %v, want %q", err, tc.want)
+			}
+			if strings.Contains(out.String(), "scene.apply") {
+				t.Fatalf("printed success: %s", out.String())
+			}
+		})
 	}
 }
 

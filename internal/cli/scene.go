@@ -285,7 +285,9 @@ func newSceneApplyCmd(flags *rootFlags) *cobra.Command {
 				if ip == "" {
 					continue
 				}
-				_ = newSceneSpeakerClient(ip, flags.Timeout).LeaveGroup(cmd.Context())
+				if err := newSceneSpeakerClient(ip, flags.Timeout).LeaveGroup(cmd.Context()); err != nil {
+					return fmt.Errorf("leave group for %s: %w", dev.Name, err)
+				}
 			}
 
 			// Step 2: rebuild groups.
@@ -342,8 +344,12 @@ func newSceneApplyCmd(flags *rootFlags) *cobra.Command {
 					continue
 				}
 				c := newSceneSpeakerClient(ip, flags.Timeout)
-				_ = c.SetMute(cmd.Context(), dev.Mute)
-				_ = c.SetVolume(cmd.Context(), dev.Volume)
+				if err := c.SetMute(cmd.Context(), dev.Mute); err != nil {
+					return fmt.Errorf("set mute for %s: %w", dev.Name, err)
+				}
+				if err := c.SetVolume(cmd.Context(), dev.Volume); err != nil {
+					return fmt.Errorf("set volume for %s: %w", dev.Name, err)
+				}
 			}
 
 			return writeOK(cmd, flags, "scene.apply", map[string]any{"name": scene.Name, "only": strings.TrimSpace(only)})

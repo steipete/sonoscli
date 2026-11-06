@@ -68,6 +68,41 @@ func TestEnqueueSMAPIItem(t *testing.T) {
 	}
 }
 
+func TestEnqueueSMAPIItem_PlayNowMissingTrackNumber(t *testing.T) {
+	t.Parallel()
+
+	var actions []string
+	c := &Client{
+		IP: "192.0.2.1",
+		HTTP: &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+			action := r.Header.Get("SOAPACTION")
+			actions = append(actions, action)
+			if strings.Contains(action, "AddURIToQueue") {
+				return httpResponse(200, `<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:AddURIToQueueResponse xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"></u:AddURIToQueueResponse></s:Body></s:Envelope>`), nil
+			}
+			if strings.Contains(action, "Play") {
+				return httpResponse(200, `<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:PlayResponse xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"></u:PlayResponse></s:Body></s:Envelope>`), nil
+			}
+			t.Fatalf("unexpected action %s", action)
+			return nil, nil
+		})},
+	}
+
+	_, err := c.EnqueueSMAPIItem(context.Background(),
+		MusicServiceDescriptor{ID: "2311", Name: "Spotify"},
+		SMAPIItem{ID: "track-1", Title: "Song"},
+		EnqueueOptions{PlayNow: true},
+	)
+	if err == nil || !strings.Contains(err.Error(), "did not report the enqueued track number") {
+		t.Fatalf("error = %v", err)
+	}
+	for _, action := range actions {
+		if strings.Contains(action, "Play") {
+			t.Fatalf("started playback without a track number: %v", actions)
+		}
+	}
+}
+
 func TestEnqueueSMAPIItemValidation(t *testing.T) {
 	t.Parallel()
 

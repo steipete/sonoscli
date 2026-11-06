@@ -72,6 +72,14 @@ func (c *Client) PlayFromQueueTrack(ctx context.Context, oneBasedTrackNumber int
 	return c.playFromQueueTrack(ctx, oneBasedTrackNumber)
 }
 
+func (c *Client) startEnqueuedPlayback(ctx context.Context, firstTrack int) error {
+	if firstTrack <= 0 {
+		// The queue was not cleared, so track 1 can be an older item.
+		return errors.New("speaker did not report the enqueued track number")
+	}
+	return c.playFromQueueTrack(ctx, firstTrack)
+}
+
 func (c *Client) playFromQueueTrack(ctx context.Context, oneBasedTrackNumber int) error {
 	dd, err := c.GetDeviceDescription(ctx)
 	if err != nil {

@@ -220,7 +220,7 @@ func TestClientEnqueueSpotify_PlayNowMissingTrackNumber(t *testing.T) {
 	}
 
 	_, err := c.EnqueueSpotify(context.Background(), "spotify:track:abc123", EnqueueOptions{PlayNow: true})
-	if err == nil || !strings.Contains(err.Error(), "did not report the enqueued track number") {
+	if err == nil || !enqueueMissingPositionMessage(err) {
 		t.Fatalf("error = %v", err)
 	}
 	for _, action := range actions {
@@ -228,4 +228,32 @@ func TestClientEnqueueSpotify_PlayNowMissingTrackNumber(t *testing.T) {
 			t.Fatalf("started playback without a track number: %v", actions)
 		}
 	}
+}
+
+func TestStartEnqueuedPlaybackMissingPosition(t *testing.T) {
+	t.Parallel()
+
+	err := (&Client{}).startEnqueuedPlayback(context.Background(), 0)
+	if !enqueueMissingPositionMessage(err) {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func enqueueMissingPositionMessage(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	for _, part := range []string{
+		"playback was not started",
+		"already on the queue",
+		"sonos queue list",
+		"sonos queue play <pos>",
+		"Do not enqueue the track again",
+	} {
+		if !strings.Contains(msg, part) {
+			return false
+		}
+	}
+	return true
 }

@@ -93,7 +93,7 @@ func TestEnqueueSMAPIItem_PlayNowMissingTrackNumber(t *testing.T) {
 		SMAPIItem{ID: "track-1", Title: "Song"},
 		EnqueueOptions{PlayNow: true},
 	)
-	if err == nil || !strings.Contains(err.Error(), "did not report the enqueued track number") {
+	if err == nil || !enqueueMissingPositionMessage(err) {
 		t.Fatalf("error = %v", err)
 	}
 	for _, action := range actions {

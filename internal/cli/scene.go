@@ -46,6 +46,13 @@ var newSceneSpeakerClient = func(ip string, timeout time.Duration) sceneSpeakerC
 	return sonos.NewClient(ip, timeout)
 }
 
+func sceneTopologyClient(ctx context.Context, flags *rootFlags) (sceneTopologyGetter, error) {
+	if strings.TrimSpace(flags.IP) != "" {
+		return sonos.NewClient(strings.TrimSpace(flags.IP), flags.Timeout), nil
+	}
+	return newSceneTopologyGetter(ctx, flags.Timeout)
+}
+
 func newSceneCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "scene",
@@ -116,7 +123,7 @@ func newSceneSaveCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			tg, err := newSceneTopologyGetter(cmd.Context(), flags.Timeout)
+			tg, err := sceneTopologyClient(cmd.Context(), flags)
 			if err != nil {
 				return err
 			}
@@ -165,8 +172,14 @@ func newSceneSaveCmd(flags *rootFlags) *cobra.Command {
 					}
 					seen[m.UUID] = true
 					c := newSceneSpeakerClient(m.IP, flags.Timeout)
-					vol, _ := c.GetVolume(cmd.Context())
-					mute, _ := c.GetMute(cmd.Context())
+					vol, err := c.GetVolume(cmd.Context())
+					if err != nil {
+						return fmt.Errorf("get volume for %s: %w", m.Name, err)
+					}
+					mute, err := c.GetMute(cmd.Context())
+					if err != nil {
+						return fmt.Errorf("get mute for %s: %w", m.Name, err)
+					}
 					scene.Devices = append(scene.Devices, scenes.SceneDevice{
 						UUID:   m.UUID,
 						Name:   m.Name,
@@ -213,7 +226,7 @@ func newSceneApplyCmd(flags *rootFlags) *cobra.Command {
 				return errors.New("scene not found: " + name)
 			}
 
-			tg, err := newSceneTopologyGetter(cmd.Context(), flags.Timeout)
+			tg, err := sceneTopologyClient(cmd.Context(), flags)
 			if err != nil {
 				return err
 			}
@@ -285,7 +298,9 @@ func newSceneApplyCmd(flags *rootFlags) *cobra.Command {
 				if ip == "" {
 					continue
 				}
-				_ = newSceneSpeakerClient(ip, flags.Timeout).LeaveGroup(cmd.Context())
+				if err := newSceneSpeakerClient(ip, flags.Timeout).LeaveGroup(cmd.Context()); err != nil {
+					return fmt.Errorf("leave group for %s: %w", dev.Name, err)
+				}
 			}
 
 			// Step 2: rebuild groups.
@@ -342,8 +357,12 @@ func newSceneApplyCmd(flags *rootFlags) *cobra.Command {
 					continue
 				}
 				c := newSceneSpeakerClient(ip, flags.Timeout)
-				_ = c.SetMute(cmd.Context(), dev.Mute)
-				_ = c.SetVolume(cmd.Context(), dev.Volume)
+				if err := c.SetMute(cmd.Context(), dev.Mute); err != nil {
+					return fmt.Errorf("set mute for %s: %w", dev.Name, err)
+				}
+				if err := c.SetVolume(cmd.Context(), dev.Volume); err != nil {
+					return fmt.Errorf("set volume for %s: %w", dev.Name, err)
+				}
 			}
 
 			return writeOK(cmd, flags, "scene.apply", map[string]any{"name": scene.Name, "only": strings.TrimSpace(only)})

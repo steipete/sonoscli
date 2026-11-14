@@ -41,7 +41,7 @@ sonos scene apply evening --only "Kitchen"   # experimental
 | --- | --- |
 | `--only string` | Restore only the saved state for one room (experimental). |
 
-Apply is best-effort and idempotent — if a member is offline, that step is skipped and the rest of the scene is still applied.
+Apply is idempotent. Speakers absent from the current topology are skipped; a failed command to a visible speaker stops the operation with an error. Completed changes are not rolled back.
 
 ## `sonos scene delete`
 
@@ -52,3 +52,5 @@ sonos scene delete evening
 ## See also
 
 - [Scenes](../scenes.md) — what's captured, what isn't, and how apply works under the hood.
+
+Save preserves the existing file when a volume or mute read fails. Save and apply accept `--ip <speaker-ip>` to bypass discovery for the topology query.

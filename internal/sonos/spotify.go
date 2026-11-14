@@ -122,13 +122,10 @@ func (c *Client) EnqueueSpotify(ctx context.Context, input string, opts EnqueueO
 				lastErr = err
 				continue
 			}
-			if opts.PlayNow && first > 0 {
-				if err := c.playFromQueueTrack(ctx, first); err != nil {
+			if opts.PlayNow {
+				if err := c.startEnqueuedPlayback(ctx, first); err != nil {
 					return first, err
 				}
-			} else if opts.PlayNow {
-				// If the speaker doesn't report a first track number, just call Play.
-				_ = c.Play(ctx)
 			}
 			return first, nil
 		}

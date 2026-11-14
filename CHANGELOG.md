@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed
+- Preserve saved scenes on failed volume/mute reads and report grouping or audio-setting failures when applying scenes. Thanks @SebTardif.
+- Report missing queue positions after enqueueing without starting unrelated playback; explain how to recover without enqueueing twice. Thanks @SebTardif.
+- Honor explicit speaker IPs when saving and applying scenes.
+
+### Changed
+- Use Go 1.27.4 for build, CI, Docker and release tooling while retaining Go 1.26 compatibility; update pflag to 1.1.0.
+
 ## [0.3.5] - 2026-10-23
 
 **Highlights:** Fix the reachable crypto/x509 vulnerability GO-2026-6809 with Go 1.27.3, explain SMAPI API-client identity rejections, and correctly label initial watch events.

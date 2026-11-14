@@ -195,3 +195,56 @@ func TestClientEnqueueSpotify_TrackFallbacksToLegacyURI(t *testing.T) {
 		t.Fatalf("attempted URIs mismatch: got %v want %v", attemptedURIs, expected)
 	}
 }
+
+func TestClientEnqueueSpotify_PlayNowMissingTrackNumber(t *testing.T) {
+	t.Parallel()
+
+	var actions []string
+	c := &Client{
+		IP: "192.0.2.1",
+		HTTP: &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+			if r.Method == http.MethodGet {
+				return httpResponse(200, `<?xml version="1.0"?><root xmlns="urn:schemas-upnp-org:device-1-0"><device><UDN>uuid:RINCON_ABC1400</UDN></device></root>`), nil
+			}
+			action := r.Header.Get("SOAPACTION")
+			actions = append(actions, action)
+			if strings.Contains(action, "#AddURIToQueue") {
+				return httpResponse(200, `<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:AddURIToQueueResponse xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"></u:AddURIToQueueResponse></s:Body></s:Envelope>`), nil
+			}
+			if strings.Contains(action, "#Play") {
+				return httpResponse(200, `<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:PlayResponse xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"></u:PlayResponse></s:Body></s:Envelope>`), nil
+			}
+			t.Fatalf("unexpected SOAPACTION %q", action)
+			return nil, nil
+		})},
+	}
+
+	_, err := c.EnqueueSpotify(context.Background(), "spotify:track:abc123", EnqueueOptions{PlayNow: true})
+	if err == nil || !enqueueMissingPositionMessage(err) {
+		t.Fatalf("error = %v", err)
+	}
+	for _, action := range actions {
+		if strings.Contains(action, "#Play") || strings.Contains(action, "#Seek") {
+			t.Fatalf("started playback without a track number: %v", actions)
+		}
+	}
+}
+
+func enqueueMissingPositionMessage(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	for _, part := range []string{
+		"playback was not started",
+		"already on the queue",
+		"sonos queue list",
+		"sonos queue play <pos>",
+		"Do not enqueue the track again",
+	} {
+		if !strings.Contains(msg, part) {
+			return false
+		}
+	}
+	return true
+}

@@ -28,7 +28,7 @@ go install github.com/steipete/sonoscli/cmd/sonos@latest
 sonos --version
 ```
 
-Source builds retain Go 1.26 as the minimum and prefer Go 1.27.3 via `go.mod`. CI and Docker builds use the same preferred patch version.
+Source builds retain Go 1.26 as the minimum and prefer Go 1.27.4 via `go.mod`. CI and Docker builds use the same preferred patch version.
 
 The binary lands in `$(go env GOBIN)` (defaults to `$HOME/go/bin`) — make sure that's on your `PATH`.
 

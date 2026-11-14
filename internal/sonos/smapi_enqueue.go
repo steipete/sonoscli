@@ -42,12 +42,10 @@ func (c *Client) EnqueueSMAPIItem(ctx context.Context, svc MusicServiceDescripto
 	if err != nil {
 		return 0, err
 	}
-	if opts.PlayNow && first > 0 {
-		if err := c.playFromQueueTrack(ctx, first); err != nil {
+	if opts.PlayNow {
+		if err := c.startEnqueuedPlayback(ctx, first); err != nil {
 			return first, err
 		}
-	} else if opts.PlayNow {
-		_ = c.Play(ctx)
 	}
 	return first, nil
 }

@@ -72,6 +72,14 @@ func (c *Client) PlayFromQueueTrack(ctx context.Context, oneBasedTrackNumber int
 	return c.playFromQueueTrack(ctx, oneBasedTrackNumber)
 }
 
+func (c *Client) startEnqueuedPlayback(ctx context.Context, firstTrack int) error {
+	if firstTrack <= 0 {
+		// The queue was not cleared, so track 1 can be an older item.
+		return errors.New("playback was not started because the speaker did not report the new queue position; the track is already on the queue. Run sonos queue list, then sonos queue play <pos> for this speaker. Do not enqueue the track again")
+	}
+	return c.playFromQueueTrack(ctx, firstTrack)
+}
+
 func (c *Client) playFromQueueTrack(ctx context.Context, oneBasedTrackNumber int) error {
 	dd, err := c.GetDeviceDescription(ctx)
 	if err != nil {

@@ -23,7 +23,7 @@ sonos scene apply evening
 sonos scene delete evening
 ```
 
-Apply is best-effort and idempotent — running `sonos scene apply evening` twice is safe.
+Apply is idempotent. It stops and reports any speaker command failure; already completed changes are not rolled back.
 
 ## Targeting one room (experimental)
 
@@ -62,14 +62,16 @@ sonos open --name "Living Room" spotify:playlist:37i9dQZF1DXcBWIGoYBM5M
 4. Re-create the saved groups (each member joins the saved coordinator).
 5. Re-apply per-room volume and mute.
 
-If a speaker named in the scene has gone offline, the corresponding step is logged and skipped — the rest of the scene still applies.
+Speakers absent from the current topology are skipped. A command failure on a visible speaker stops the apply operation and returns an error.
 
 ## File layout
 
 Scenes live alongside your config:
 
 ```
-~/.config/sonoscli/scenes/<name>.json
+<user-config-dir>/sonoscli/scenes.json
 ```
 
 The format is intentionally readable and stable; you can hand-edit a scene file if you really want to.
+
+Saving a scene fails without replacing the saved file if any volume or mute read fails. Use `--ip <speaker-ip>` with save or apply to read topology directly from that speaker, bypassing discovery.

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-11-15
+
+**Highlights:** Protect saved scenes when speaker reads fail, honor explicit speaker IPs, and prevent playback from starting at an unrelated queue position.
+
 ### Fixed
 - Preserve saved scenes on failed volume/mute reads and report grouping or audio-setting failures when applying scenes. Thanks @SebTardif.
 - Report missing queue positions after enqueueing without starting unrelated playback; explain how to recover without enqueueing twice. Thanks @SebTardif.
